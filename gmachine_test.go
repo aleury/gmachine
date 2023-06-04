@@ -19,3 +19,24 @@ func TestNew(t *testing.T) {
 		t.Errorf("want last memory location to contain %d, got %d", wantMemValue, gotMemValue)
 	}
 }
+
+func TestHALT(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New()
+	g.Run()
+	var wantP gmachine.Word = 1
+	if wantP != g.P {
+		t.Errorf("want P == %d, got P == %d", wantP, g.P)
+	}
+}
+
+func TestNOOP(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New()
+	g.Memory[0] = gmachine.OpNOOP
+	g.Run()
+	var wantP gmachine.Word = 2
+	if wantP != g.P {
+		t.Errorf("want P == %d, got P == %d", wantP, g.P)
+	}
+}
