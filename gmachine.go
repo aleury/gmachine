@@ -4,6 +4,7 @@ package gmachine
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -16,6 +17,7 @@ const MemSize = 1024
 const (
 	OpHALT Word = iota + 1
 	OpNOOP
+	OpOUT
 	OpINCA
 	OpDECA
 	OpSETA
@@ -36,14 +38,16 @@ type Machine struct {
 	P      Word
 	A      Word
 	E      Word
+	Out    io.Writer
 	Memory []Word
 }
 
-func New() *Machine {
+func New(out io.Writer) *Machine {
 	return &Machine{
 		P:      Word(0),
 		A:      Word(0),
 		E:      Word(0),
+		Out:    out,
 		Memory: make([]Word, MemSize),
 	}
 }
@@ -62,6 +66,8 @@ func (g *Machine) Run() {
 			return
 		case OpNOOP:
 			continue
+		case OpOUT:
+			g.Out.Write([]byte{byte(g.A)})
 		case OpINCA:
 			g.A++
 		case OpDECA:
@@ -83,13 +89,16 @@ func (g *Machine) RunProgram(program []Word) {
 
 func Assemble(input string) ([]Word, error) {
 	program := []Word{}
-	for lineNo, instruction := range strings.Split(strings.TrimSpace(input), "\n") {
-		parts := strings.Split(instruction, " ")
+	instructions := strings.Split(strings.TrimSpace(input), "\n")
+	for lineNo, instruction := range instructions {
+		parts := strings.SplitN(instruction, " ", 2)
 		switch parts[0] {
 		case "HALT":
 			program = append(program, OpHALT)
 		case "NOOP":
 			program = append(program, OpNOOP)
+		case "OUT":
+			program = append(program, OpOUT)
 		case "INCA":
 			program = append(program, OpINCA)
 		case "DECA":
@@ -112,9 +121,7 @@ func (g *Machine) AssembleAndRun(input string) error {
 	if err != nil {
 		return err
 	}
-
 	g.RunProgram(program)
-
 	return nil
 }
 
@@ -124,7 +131,7 @@ func RunFile(path string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	g := New()
+	g := New(os.Stdout)
 	err = g.AssembleAndRun(string(content))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

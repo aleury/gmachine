@@ -1,7 +1,9 @@
 package gmachine_test
 
 import (
+	"bytes"
 	"errors"
+	"io"
 	"testing"
 
 	"gmachine"
@@ -13,7 +15,7 @@ import (
 
 func TestNew(t *testing.T) {
 	t.Parallel()
-	g := gmachine.New()
+	g := gmachine.New(nil)
 	var wantP gmachine.Word = 0
 	if wantP != g.P {
 		t.Errorf("want initial P value %d, got %d", wantP, g.P)
@@ -31,7 +33,7 @@ func TestNew(t *testing.T) {
 
 func TestHALT(t *testing.T) {
 	t.Parallel()
-	g := gmachine.New()
+	g := gmachine.New(nil)
 	var wantP gmachine.Word = 1
 	err := g.AssembleAndRun("HALT")
 	if err != nil {
@@ -44,7 +46,7 @@ func TestHALT(t *testing.T) {
 
 func TestNOOP(t *testing.T) {
 	t.Parallel()
-	g := gmachine.New()
+	g := gmachine.New(nil)
 	var wantP gmachine.Word = 2
 	err := g.AssembleAndRun("NOOP")
 	if err != nil {
@@ -57,7 +59,7 @@ func TestNOOP(t *testing.T) {
 
 func TestINCA(t *testing.T) {
 	t.Parallel()
-	g := gmachine.New()
+	g := gmachine.New(nil)
 	err := g.AssembleAndRun("INCA")
 	if err != nil {
 		t.Fatal("didn't expect an error", err)
@@ -70,7 +72,7 @@ func TestINCA(t *testing.T) {
 
 func TestIllegalInstruction(t *testing.T) {
 	t.Parallel()
-	g := gmachine.New()
+	g := gmachine.New(nil)
 	g.RunProgram([]gmachine.Word{
 		0,
 	})
@@ -82,7 +84,7 @@ func TestIllegalInstruction(t *testing.T) {
 
 func TestOutOfMemoryException(t *testing.T) {
 	t.Parallel()
-	g := gmachine.New()
+	g := gmachine.New(nil)
 	g.P = gmachine.MemSize - 1
 	err := g.AssembleAndRun("NOOP")
 	if err != nil {
@@ -96,7 +98,7 @@ func TestOutOfMemoryException(t *testing.T) {
 
 func TestDECA(t *testing.T) {
 	t.Parallel()
-	g := gmachine.New()
+	g := gmachine.New(nil)
 	g.A = 1
 	var wantA gmachine.Word = 0
 	err := g.AssembleAndRun("DECA")
@@ -110,7 +112,7 @@ func TestDECA(t *testing.T) {
 
 func TestSETA(t *testing.T) {
 	t.Parallel()
-	g := gmachine.New()
+	g := gmachine.New(nil)
 	var wantA gmachine.Word = 5
 	err := g.AssembleAndRun("SETA 5")
 	if err != nil {
@@ -144,7 +146,7 @@ func TestAssembleInvalidSourceCode(t *testing.T) {
 
 func TestAssembleAndRun(t *testing.T) {
 	t.Parallel()
-	g := gmachine.New()
+	g := gmachine.New(nil)
 	err := g.AssembleAndRun("INCA\nHALT")
 	if err != nil {
 		t.Fatal("didn't expect an error", err)
@@ -157,7 +159,7 @@ func TestAssembleAndRun(t *testing.T) {
 
 func TestSETAWithInvalidNumber(t *testing.T) {
 	t.Parallel()
-	g := gmachine.New()
+	g := gmachine.New(nil)
 	err := g.AssembleAndRun("SETA a")
 	wantErr := gmachine.ErrInvalidNumber
 	if err == nil {
@@ -165,5 +167,45 @@ func TestSETAWithInvalidNumber(t *testing.T) {
 	}
 	if !errors.Is(err, wantErr) {
 		t.Errorf("wanted error %v, got %v", wantErr, err)
+	}
+}
+
+func TestOUT(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	out := io.Writer(&buf)
+	g := gmachine.New(out)
+	err := g.AssembleAndRun(`
+SETA 104
+OUT 
+SETA 101
+OUT
+SETA 108
+OUT
+SETA 108
+OUT
+SETA 111
+OUT
+SETA 32
+OUT
+SETA 119
+OUT
+SETA 111
+OUT
+SETA 114
+OUT
+SETA 108
+OUT
+SETA 100
+OUT
+SETA 33
+OUT`)
+	if err != nil {
+		t.Fatal("didn't expect an error", err)
+	}
+	want := "hello world!"
+	got := buf.String()
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }
