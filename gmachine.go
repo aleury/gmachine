@@ -21,6 +21,7 @@ const (
 	OpINCA
 	OpDECA
 	OpSETA
+	OpJUMP
 )
 
 const (
@@ -75,6 +76,8 @@ func (g *Machine) Run() {
 		case OpSETA:
 			g.A = g.Memory[g.P]
 			g.P++
+		case OpJUMP:
+			g.P = g.Memory[g.P]
 		default:
 			g.E = ExceptionIllegalInstruction
 			return
@@ -109,6 +112,12 @@ func Assemble(input string) ([]Word, error) {
 				return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
 			}
 			program = append(program, OpSETA, Word(num))
+		case "JUMP":
+			loc, err := strconv.ParseUint(parts[1], 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
+			}
+			program = append(program, OpJUMP, Word(loc))
 		default:
 			return nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, parts[0], lineNo+1)
 		}

@@ -209,3 +209,34 @@ OUT`)
 		t.Error(cmp.Diff(want, got))
 	}
 }
+
+func TestJUMP(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	var wantA gmachine.Word = 42
+	err := g.AssembleAndRun(`
+JUMP 3
+HALT
+SETA 41
+INCA
+`)
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	if wantA != g.A {
+		t.Errorf("want A %d, got %d", wantA, g.A)
+	}
+}
+
+func TestJUMPWithInvalidNumber(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := g.AssembleAndRun("SETA a")
+	wantErr := gmachine.ErrInvalidNumber
+	if err == nil {
+		t.Fatal("expected an error to be returned for invalid argument to JUMP")
+	}
+	if !errors.Is(err, wantErr) {
+		t.Errorf("wanted error %v, got %v", wantErr, err)
+	}
+}
