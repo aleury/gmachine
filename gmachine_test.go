@@ -231,7 +231,7 @@ INCA
 func TestJUMPWithInvalidNumber(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	err := g.AssembleAndRun("SETA a")
+	err := g.AssembleAndRun("JUMP a")
 	wantErr := gmachine.ErrInvalidNumber
 	if err == nil {
 		t.Fatal("expected an error to be returned for invalid argument to JUMP")
