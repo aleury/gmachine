@@ -170,36 +170,36 @@ func TestSETAWithInvalidNumber(t *testing.T) {
 	}
 }
 
-func TestOUT(t *testing.T) {
+func TestOUTA(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
 	out := io.Writer(&buf)
 	g := gmachine.New(out)
 	err := g.AssembleAndRun(`
 SETA 104
-OUT 
+OUTA 
 SETA 101
-OUT
+OUTA
 SETA 108
-OUT
+OUTA
 SETA 108
-OUT
+OUTA
 SETA 111
-OUT
+OUTA
 SETA 32
-OUT
+OUTA
 SETA 119
-OUT
+OUTA
 SETA 111
-OUT
+OUTA
 SETA 114
-OUT
+OUTA
 SETA 108
-OUT
+OUTA
 SETA 100
-OUT
+OUTA
 SETA 33
-OUT`)
+OUTA`)
 	if err != nil {
 		t.Fatal("didn't expect an error", err)
 	}

@@ -17,7 +17,7 @@ const MemSize = 1024
 const (
 	OpHALT Word = iota + 1
 	OpNOOP
-	OpOUT
+	OpOUTA
 	OpINCA
 	OpDECA
 	OpSETA
@@ -67,7 +67,7 @@ func (g *Machine) Run() {
 			return
 		case OpNOOP:
 			continue
-		case OpOUT:
+		case OpOUTA:
 			g.Out.Write([]byte{byte(g.A)})
 		case OpINCA:
 			g.A++
@@ -100,8 +100,8 @@ func Assemble(input string) ([]Word, error) {
 			program = append(program, OpHALT)
 		case "NOOP":
 			program = append(program, OpNOOP)
-		case "OUT":
-			program = append(program, OpOUT)
+		case "OUTA":
+			program = append(program, OpOUTA)
 		case "INCA":
 			program = append(program, OpINCA)
 		case "DECA":
