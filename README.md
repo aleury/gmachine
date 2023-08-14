@@ -1,3 +1,5 @@
+[![Test](https://github.com/aleury/gmachine/actions/workflows/test.yml/badge.svg)](https://github.com/aleury/gmachine/actions/workflows/test.yml)
+
 # 1: Welcome to the Machine
 
 ![](img/soldering.png)
