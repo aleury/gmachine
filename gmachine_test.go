@@ -170,35 +170,49 @@ func TestSETAWithInvalidNumber(t *testing.T) {
 	}
 }
 
+func TestSETA_AcceptsCharacterLiteral(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := g.AssembleAndRun("SETA 'h'")
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	wantA := 'h'
+	gotA := rune(g.A)
+	if wantA != gotA {
+		t.Errorf("want A %d, got %d", wantA, gotA)
+	}
+}
+
 func TestOUTA(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
 	out := io.Writer(&buf)
 	g := gmachine.New(out)
 	err := g.AssembleAndRun(`
-SETA 104
-OUTA 
-SETA 101
+SETA 'h'
 OUTA
-SETA 108
+SETA 'e'
 OUTA
-SETA 108
+SETA 'l'
 OUTA
-SETA 111
+SETA 'l'
 OUTA
-SETA 32
+SETA 'o'
 OUTA
-SETA 119
+SETA ' '
 OUTA
-SETA 111
+SETA 'w'
 OUTA
-SETA 114
+SETA 'o'
 OUTA
-SETA 108
+SETA 'r'
 OUTA
-SETA 100
+SETA 'l'
 OUTA
-SETA 33
+SETA 'd'
+OUTA
+SETA '!'
 OUTA`)
 	if err != nil {
 		t.Fatal("didn't expect an error", err)

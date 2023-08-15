@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // TODO(adam): Research serial output to add support outputing characters from the gmachine
@@ -107,11 +108,18 @@ func Assemble(input string) ([]Word, error) {
 		case "DECA":
 			program = append(program, OpDECA)
 		case "SETA":
-			num, err := strconv.ParseUint(parts[1], 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
+			var operand Word
+			if strings.HasPrefix(parts[1], "'") && strings.HasSuffix(parts[1], "'") {
+				char, _ := utf8.DecodeRuneInString(strings.Trim(parts[1], "'"))
+				operand = Word(char)
+			} else {
+				num, err := strconv.ParseUint(parts[1], 10, 64)
+				if err != nil {
+					return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
+				}
+				operand = Word(num)
 			}
-			program = append(program, OpSETA, Word(num))
+			program = append(program, OpSETA, operand)
 		case "JUMP":
 			loc, err := strconv.ParseUint(parts[1], 10, 64)
 			if err != nil {
