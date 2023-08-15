@@ -1,3 +1,4 @@
+; prints "hello world!"
 SETA 'h'
 OUTA
 SETA 'e'

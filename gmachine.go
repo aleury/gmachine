@@ -93,9 +93,12 @@ func (g *Machine) RunProgram(program []Word) {
 
 func Assemble(input string) ([]Word, error) {
 	program := []Word{}
-	instructions := strings.Split(strings.TrimSpace(input), "\n")
-	for lineNo, instruction := range instructions {
-		parts := strings.SplitN(instruction, " ", 2)
+	lines := strings.Split(strings.TrimSpace(input), "\n")
+	for lineNo, line := range lines {
+		if strings.HasPrefix(line, ";") {
+			continue
+		}
+		parts := strings.SplitN(line, " ", 2)
 		switch parts[0] {
 		case "HALT":
 			program = append(program, OpHALT)

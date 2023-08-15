@@ -254,3 +254,15 @@ func TestJUMPWithInvalidNumber(t *testing.T) {
 		t.Errorf("wanted error %v, got %v", wantErr, err)
 	}
 }
+
+func TestAssemble_SkipsComments(t *testing.T) {
+	t.Parallel()
+	want := []gmachine.Word{}
+	got, err := gmachine.Assemble("; this is a comment")
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
