@@ -28,6 +28,10 @@ func TestNew(t *testing.T) {
 	if wantA != g.A {
 		t.Errorf("want initial A value %d, got %d", wantA, g.A)
 	}
+	var wantX gmachine.Word = 0
+	if wantX != g.X {
+		t.Errorf("want initial X value %d, got %d", wantX, g.X)
+	}
 	var wantMemValue gmachine.Word = 0
 	gotMemValue := g.Memory[gmachine.MemSize-1]
 	if wantMemValue != gotMemValue {
@@ -319,11 +323,29 @@ POPA
 	}
 }
 
-func TestADDA(t *testing.T) {
+func TestMVAX(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	var wantA gmachine.Word = 4
-	err := g.AssembleAndRun("SETA 2\nADDA 2")
+	err := g.AssembleAndRun("SETA 42\nMVAX\n")
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	var wantX gmachine.Word = 42
+	if wantX != g.X {
+		t.Errorf("want X %d, got %d", wantX, g.X)
+	}
+}
+
+func TestADAX(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	var wantA gmachine.Word = 10
+	err := g.AssembleAndRun(`
+SETA 6
+MVAX
+SETA 4
+ADAX
+`)
 	if err != nil {
 		t.Fatal("didn't expect an error:", err)
 	}
@@ -332,15 +354,26 @@ func TestADDA(t *testing.T) {
 	}
 }
 
-func TestADDAWithInvalidNumber(t *testing.T) {
+func TestAddTwoNumbers(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	err := g.AssembleAndRun("ADDA a")
-	wantErr := gmachine.ErrInvalidNumber
-	if err == nil {
-		t.Fatal("expected an error to be returned for invalid argument to SETA")
+	err := g.AssembleAndRun(`
+; x = 4, y = 6
+SETA 4
+PSHA
+SETA 6
+PSHA
+; add x y
+POPA
+MVAX
+POPA
+ADAX
+`)
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
 	}
-	if !errors.Is(err, wantErr) {
-		t.Errorf("wanted error %v, got %v", wantErr, err)
+	var wantA gmachine.Word = 10
+	if wantA != g.A {
+		t.Errorf("want A %d, got %d", wantA, g.A)
 	}
 }

@@ -22,7 +22,8 @@ const (
 	OpOUTA
 	OpINCA
 	OpDECA
-	OpADDA
+	OpADAX
+	OpMVAX
 	OpSETA
 	OpPSHA
 	OpPOPA
@@ -44,6 +45,7 @@ type Machine struct {
 	P         Word
 	S         Word
 	A         Word
+	X         Word
 	E         Word
 	Out       io.Writer
 	MemOffset Word
@@ -55,6 +57,7 @@ func New(out io.Writer) *Machine {
 		P:         Word(0),
 		S:         Word(0),
 		A:         Word(0),
+		X:         Word(0),
 		E:         Word(0),
 		Out:       out,
 		MemOffset: StackSize,
@@ -82,9 +85,10 @@ func (g *Machine) Run() {
 			g.A++
 		case OpDECA:
 			g.A--
-		case OpADDA:
-			g.A += g.Memory[g.MemOffset+g.P]
-			g.P++
+		case OpADAX:
+			g.A += g.X
+		case OpMVAX:
+			g.X = g.A
 		case OpSETA:
 			g.A = g.Memory[g.MemOffset+g.P]
 			g.P++
@@ -131,12 +135,10 @@ func Assemble(input string) ([]Word, error) {
 			program = append(program, OpPSHA)
 		case "POPA":
 			program = append(program, OpPOPA)
-		case "ADDA":
-			num, err := strconv.ParseUint(parts[1], 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
-			}
-			program = append(program, OpADDA, Word(num))
+		case "ADAX":
+			program = append(program, OpADAX)
+		case "MVAX":
+			program = append(program, OpMVAX)
 		case "SETA":
 			var operand Word
 			if strings.HasPrefix(parts[1], "'") && strings.HasSuffix(parts[1], "'") {
