@@ -20,6 +20,10 @@ func TestNew(t *testing.T) {
 	if wantP != g.P {
 		t.Errorf("want initial P value %d, got %d", wantP, g.P)
 	}
+	var wantS gmachine.Word = 0
+	if wantS != g.S {
+		t.Errorf("want initial S value %d, got %d", wantS, g.S)
+	}
 	var wantA gmachine.Word = 0
 	if wantA != g.A {
 		t.Errorf("want initial A value %d, got %d", wantA, g.A)
@@ -28,6 +32,11 @@ func TestNew(t *testing.T) {
 	gotMemValue := g.Memory[gmachine.MemSize-1]
 	if wantMemValue != gotMemValue {
 		t.Errorf("want last memory location to contain %d, got %d", wantMemValue, gotMemValue)
+	}
+	var wantMemOffset gmachine.Word = gmachine.StackSize
+	gotMemOffset := g.MemOffset
+	if wantMemOffset != gotMemOffset {
+		t.Errorf("want memory offset %d, got %d", wantMemValue, gotMemValue)
 	}
 }
 
@@ -85,7 +94,7 @@ func TestIllegalInstruction(t *testing.T) {
 func TestOutOfMemoryException(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	g.P = gmachine.MemSize - 1
+	g.P = gmachine.MemSize - gmachine.StackSize - 1
 	err := g.AssembleAndRun("NOOP")
 	if err != nil {
 		t.Fatal("didn't expect an error", err)
@@ -264,5 +273,48 @@ func TestAssemble_SkipsComments(t *testing.T) {
 	}
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestPSHA(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	var wantA gmachine.Word = 42
+	var wantS gmachine.Word = 1
+	var want gmachine.Word = 42
+	err := g.AssembleAndRun("SETA 42\nPSHA")
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	if wantA != g.A {
+		t.Errorf("wanted A %d, got %d", wantA, g.A)
+	}
+	if wantS != g.S {
+		t.Errorf("wanted S %d, got %d", wantS, g.S)
+	}
+	if want != g.Memory[wantS-1] {
+		t.Errorf("wanted stack value %d, got %d", want, g.Memory[wantS])
+	}
+}
+
+func TestPOPA(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	var wantA gmachine.Word = 42
+	var wantS gmachine.Word = 0
+	err := g.AssembleAndRun(`
+SETA 42
+PSHA
+SETA 3
+POPA
+`)
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	if wantA != g.A {
+		t.Errorf("wanted A %d, got %d", wantA, g.A)
+	}
+	if wantS != g.S {
+		t.Errorf("wanted S %d, got %d", wantS, g.S)
 	}
 }

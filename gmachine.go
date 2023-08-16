@@ -14,6 +14,7 @@ import (
 // TODO(adam): Research serial output to add support outputing characters from the gmachine
 
 const MemSize = 1024
+const StackSize = 256
 
 const (
 	OpHALT Word = iota + 1
@@ -22,6 +23,8 @@ const (
 	OpINCA
 	OpDECA
 	OpSETA
+	OpPSHA
+	OpPOPA
 	OpJUMP
 )
 
@@ -37,28 +40,32 @@ var ErrUndefinedInstruction error = errors.New("undefined instruction")
 type Word uint64
 
 type Machine struct {
-	P      Word
-	A      Word
-	E      Word
-	Out    io.Writer
-	Memory []Word
+	P         Word
+	S         Word
+	A         Word
+	E         Word
+	Out       io.Writer
+	MemOffset Word
+	Memory    []Word
 }
 
 func New(out io.Writer) *Machine {
 	return &Machine{
-		P:      Word(0),
-		A:      Word(0),
-		E:      Word(0),
-		Out:    out,
-		Memory: make([]Word, MemSize),
+		P:         Word(0),
+		S:         Word(0),
+		A:         Word(0),
+		E:         Word(0),
+		Out:       out,
+		MemOffset: StackSize,
+		Memory:    make([]Word, MemSize),
 	}
 }
 
 func (g *Machine) Run() {
 	for {
-		instruction := g.Memory[g.P]
+		instruction := g.Memory[g.MemOffset+g.P]
 		g.P++
-		if g.P >= MemSize {
+		if g.MemOffset+g.P >= MemSize {
 			g.E = ExceptionOutOfMemory
 			return
 		}
@@ -75,10 +82,16 @@ func (g *Machine) Run() {
 		case OpDECA:
 			g.A--
 		case OpSETA:
-			g.A = g.Memory[g.P]
+			g.A = g.Memory[g.MemOffset+g.P]
 			g.P++
+		case OpPSHA:
+			g.Memory[g.S] = g.A
+			g.S++
+		case OpPOPA:
+			g.S--
+			g.A = g.Memory[g.S]
 		case OpJUMP:
-			g.P = g.Memory[g.P]
+			g.P = g.Memory[g.MemOffset+g.P]
 		default:
 			g.E = ExceptionIllegalInstruction
 			return
@@ -87,7 +100,7 @@ func (g *Machine) Run() {
 }
 
 func (g *Machine) RunProgram(program []Word) {
-	copy(g.Memory[g.P:], program)
+	copy(g.Memory[g.MemOffset+g.P:], program)
 	g.Run()
 }
 
@@ -110,6 +123,10 @@ func Assemble(input string) ([]Word, error) {
 			program = append(program, OpINCA)
 		case "DECA":
 			program = append(program, OpDECA)
+		case "PSHA":
+			program = append(program, OpPSHA)
+		case "POPA":
+			program = append(program, OpPOPA)
 		case "SETA":
 			var operand Word
 			if strings.HasPrefix(parts[1], "'") && strings.HasSuffix(parts[1], "'") {
