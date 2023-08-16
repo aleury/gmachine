@@ -22,6 +22,7 @@ const (
 	OpOUTA
 	OpINCA
 	OpDECA
+	OpADDA
 	OpSETA
 	OpPSHA
 	OpPOPA
@@ -81,6 +82,9 @@ func (g *Machine) Run() {
 			g.A++
 		case OpDECA:
 			g.A--
+		case OpADDA:
+			g.A += g.Memory[g.MemOffset+g.P]
+			g.P++
 		case OpSETA:
 			g.A = g.Memory[g.MemOffset+g.P]
 			g.P++
@@ -127,6 +131,12 @@ func Assemble(input string) ([]Word, error) {
 			program = append(program, OpPSHA)
 		case "POPA":
 			program = append(program, OpPOPA)
+		case "ADDA":
+			num, err := strconv.ParseUint(parts[1], 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
+			}
+			program = append(program, OpADDA, Word(num))
 		case "SETA":
 			var operand Word
 			if strings.HasPrefix(parts[1], "'") && strings.HasSuffix(parts[1], "'") {

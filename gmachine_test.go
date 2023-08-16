@@ -318,3 +318,29 @@ POPA
 		t.Errorf("wanted S %d, got %d", wantS, g.S)
 	}
 }
+
+func TestADDA(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	var wantA gmachine.Word = 4
+	err := g.AssembleAndRun("SETA 2\nADDA 2")
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	if wantA != g.A {
+		t.Errorf("want A %d, got %d", wantA, g.A)
+	}
+}
+
+func TestADDAWithInvalidNumber(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := g.AssembleAndRun("ADDA a")
+	wantErr := gmachine.ErrInvalidNumber
+	if err == nil {
+		t.Fatal("expected an error to be returned for invalid argument to SETA")
+	}
+	if !errors.Is(err, wantErr) {
+		t.Errorf("wanted error %v, got %v", wantErr, err)
+	}
+}
