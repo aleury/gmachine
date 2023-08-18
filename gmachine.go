@@ -102,14 +102,12 @@ func (g *Machine) Run() {
 		case OpDECA:
 			g.A--
 		case OpADDA:
-			reg := g.Next()
-			switch reg {
+			switch g.Next() {
 			case RegX:
 				g.A += g.X
 			}
 		case OpMOVA:
-			reg := g.Next()
-			switch reg {
+			switch g.Next() {
 			case RegX:
 				g.X = g.A
 			}
