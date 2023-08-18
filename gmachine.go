@@ -22,12 +22,17 @@ const (
 	OpOUTA
 	OpINCA
 	OpDECA
-	OpADAX
-	OpMVAX
+	OpADDA
+	OpMOVA
 	OpSETA
 	OpPSHA
 	OpPOPA
 	OpJUMP
+)
+
+const (
+	RegA Word = iota
+	RegX
 )
 
 const (
@@ -37,7 +42,13 @@ const (
 )
 
 var ErrInvalidNumber error = errors.New("invalid number")
+var ErrInvalidRegister error = errors.New("invalid register")
 var ErrUndefinedInstruction error = errors.New("undefined instruction")
+
+var registers = map[string]Word{
+	"A": RegA,
+	"X": RegX,
+}
 
 type Word uint64
 
@@ -65,10 +76,15 @@ func New(out io.Writer) *Machine {
 	}
 }
 
+func (g *Machine) Next() Word {
+	word := g.Memory[g.MemOffset+g.P]
+	g.P++
+	return word
+}
+
 func (g *Machine) Run() {
 	for {
-		instruction := g.Memory[g.MemOffset+g.P]
-		g.P++
+		instruction := g.Next()
 		if g.MemOffset+g.P >= MemSize {
 			g.E = ExceptionOutOfMemory
 			return
@@ -85,13 +101,20 @@ func (g *Machine) Run() {
 			g.A++
 		case OpDECA:
 			g.A--
-		case OpADAX:
-			g.A += g.X
-		case OpMVAX:
-			g.X = g.A
+		case OpADDA:
+			reg := g.Next()
+			switch reg {
+			case RegX:
+				g.A += g.X
+			}
+		case OpMOVA:
+			reg := g.Next()
+			switch reg {
+			case RegX:
+				g.X = g.A
+			}
 		case OpSETA:
-			g.A = g.Memory[g.MemOffset+g.P]
-			g.P++
+			g.A = g.Next()
 		case OpPSHA:
 			g.Memory[g.S] = g.A
 			g.S++
@@ -135,10 +158,18 @@ func Assemble(input string) ([]Word, error) {
 			program = append(program, OpPSHA)
 		case "POPA":
 			program = append(program, OpPOPA)
-		case "ADAX":
-			program = append(program, OpADAX)
-		case "MVAX":
-			program = append(program, OpMVAX)
+		case "ADDA":
+			reg, ok := registers[parts[1]]
+			if !ok {
+				return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, parts[1], lineNo+1)
+			}
+			program = append(program, OpADDA, reg)
+		case "MOVA":
+			reg, ok := registers[parts[1]]
+			if !ok {
+				return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, parts[1], lineNo+1)
+			}
+			program = append(program, OpMOVA, reg)
 		case "SETA":
 			var operand Word
 			if strings.HasPrefix(parts[1], "'") && strings.HasSuffix(parts[1], "'") {

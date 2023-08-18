@@ -323,10 +323,10 @@ POPA
 	}
 }
 
-func TestMVAX(t *testing.T) {
+func TestMOVA(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	err := g.AssembleAndRun("SETA 42\nMVAX\n")
+	err := g.AssembleAndRun("SETA 42\nMOVA X\n")
 	if err != nil {
 		t.Fatal("didn't expect an error:", err)
 	}
@@ -336,21 +336,47 @@ func TestMVAX(t *testing.T) {
 	}
 }
 
-func TestADAX(t *testing.T) {
+func TestMOVA_FailsForInvalidRegister(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := g.AssembleAndRun("MOVA Z")
+	wantErr := gmachine.ErrInvalidRegister
+	if err == nil {
+		t.Fatal("expected an error to be returned for invalid argument to MOVA")
+	}
+	if !errors.Is(err, wantErr) {
+		t.Errorf("wanted error %v, got %v", wantErr, err)
+	}
+}
+
+func TestADDA(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	var wantA gmachine.Word = 10
 	err := g.AssembleAndRun(`
 SETA 6
-MVAX
+MOVA X
 SETA 4
-ADAX
+ADDA X
 `)
 	if err != nil {
 		t.Fatal("didn't expect an error:", err)
 	}
 	if wantA != g.A {
 		t.Errorf("want A %d, got %d", wantA, g.A)
+	}
+}
+
+func TestADDA_FailsForInvalidRegister(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := g.AssembleAndRun("ADDA Z")
+	wantErr := gmachine.ErrInvalidRegister
+	if err == nil {
+		t.Fatal("expected an error to be returned for invalid argument to ADDA")
+	}
+	if !errors.Is(err, wantErr) {
+		t.Errorf("wanted error %v, got %v", wantErr, err)
 	}
 }
 
@@ -365,9 +391,9 @@ SETA 6
 PSHA
 ; add x y
 POPA
-MVAX
+MOVA X
 POPA
-ADAX
+ADDA X
 `)
 	if err != nil {
 		t.Fatal("didn't expect an error:", err)
