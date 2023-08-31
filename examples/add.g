@@ -1,0 +1,15 @@
+.add
+POPA
+MOVA X
+POPA
+ADDA X
+PSHA
+RTRN ; sets P to R
+
+.start
+SETA 4
+PSHA
+SETA 6
+PSHA
+CALL .add ; CALL := SETR P, JUMP .add
+OUTA

@@ -403,3 +403,60 @@ ADDA X
 		t.Errorf("want A %d, got %d", wantA, g.A)
 	}
 }
+
+func TestSubroutineLabel(t *testing.T) {
+	t.Parallel()
+	want := []gmachine.Word{gmachine.OpSETA, gmachine.Word(42), gmachine.OpOUTA}
+	got, err := gmachine.Assemble(`
+.test
+SETA 42
+OUTA
+`)
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestSubRoutineLabelsAreReplacedWithMemoryAddress(t *testing.T) {
+	t.Parallel()
+	want := []gmachine.Word{
+		// .test1
+		gmachine.OpSETA,
+		gmachine.Word(42),
+		gmachine.OpOUTA,
+		gmachine.OpHALT,
+		// .test2
+		gmachine.OpSETA,
+		gmachine.Word(41),
+		gmachine.OpINCA,
+		gmachine.OpOUTA,
+		gmachine.OpHALT,
+		// .start
+		gmachine.OpJUMP,
+		gmachine.Word(4),
+	}
+	got, err := gmachine.Assemble(`
+.test1
+SETA 42
+OUTA
+HALT
+
+.test2
+SETA 41
+INCA
+OUTA
+HALT
+
+.start
+JUMP .test2
+`)
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}

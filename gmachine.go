@@ -42,6 +42,7 @@ const (
 )
 
 var ErrInvalidNumber error = errors.New("invalid number")
+var ErrUndefinedLabel error = errors.New("undefined label")
 var ErrInvalidRegister error = errors.New("invalid register")
 var ErrUndefinedInstruction error = errors.New("undefined instruction")
 
@@ -129,17 +130,39 @@ func (g *Machine) Run() {
 }
 
 func (g *Machine) RunProgram(program []Word) {
+	// Load program into machine
 	copy(g.Memory[g.MemOffset+g.P:], program)
+
+	// Begin at the .start label if it exists
+	if start, ok := labels[".start"]; ok {
+		g.P = Word(start)
+	}
+
 	g.Run()
 }
+
+var labels = map[string]uint64{}
 
 func Assemble(input string) ([]Word, error) {
 	program := []Word{}
 	lines := strings.Split(strings.TrimSpace(input), "\n")
 	for lineNo, line := range lines {
+		// Ignore comments
 		if strings.HasPrefix(line, ";") {
 			continue
 		}
+
+		// Skip whitespace
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		// Store memory address of  labels
+		if strings.HasPrefix(line, ".") {
+			labels[line] = uint64(len(program))
+			continue
+		}
+
 		parts := strings.SplitN(line, " ", 2)
 		switch parts[0] {
 		case "HALT":
@@ -182,11 +205,21 @@ func Assemble(input string) ([]Word, error) {
 			}
 			program = append(program, OpSETA, operand)
 		case "JUMP":
-			loc, err := strconv.ParseUint(parts[1], 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
+			var operand Word
+			if strings.HasPrefix(parts[1], ".") {
+				labelAddr, ok := labels[parts[1]]
+				if !ok {
+					return nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedLabel, parts[1], lineNo+1)
+				}
+				operand = Word(labelAddr)
+			} else {
+				loc, err := strconv.ParseUint(parts[1], 10, 64)
+				if err != nil {
+					return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
+				}
+				operand = Word(loc)
 			}
-			program = append(program, OpJUMP, Word(loc))
+			program = append(program, OpJUMP, operand)
 		default:
 			return nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, parts[0], lineNo+1)
 		}
