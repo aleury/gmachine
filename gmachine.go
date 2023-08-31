@@ -131,20 +131,14 @@ func (g *Machine) Run() {
 
 func (g *Machine) RunProgram(program []Word) {
 	// Load program into machine
-	copy(g.Memory[g.MemOffset+g.P:], program)
-
-	// Begin at the .start label if it exists
-	if start, ok := labels[".start"]; ok {
-		g.P = Word(start)
-	}
+	copy(g.Memory[g.MemOffset:], program)
 
 	g.Run()
 }
 
-var labels = map[string]uint64{}
-
-func Assemble(input string) ([]Word, error) {
+func Assemble(input string) ([]Word, map[string]uint64, error) {
 	program := []Word{}
+	labels := map[string]uint64{}
 	lines := strings.Split(strings.TrimSpace(input), "\n")
 	for lineNo, line := range lines {
 		// Ignore comments
@@ -182,13 +176,13 @@ func Assemble(input string) ([]Word, error) {
 		case "ADDA":
 			reg, ok := registers[parts[1]]
 			if !ok {
-				return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, parts[1], lineNo+1)
+				return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, parts[1], lineNo+1)
 			}
 			program = append(program, OpADDA, reg)
 		case "MOVA":
 			reg, ok := registers[parts[1]]
 			if !ok {
-				return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, parts[1], lineNo+1)
+				return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, parts[1], lineNo+1)
 			}
 			program = append(program, OpMOVA, reg)
 		case "SETA":
@@ -199,7 +193,7 @@ func Assemble(input string) ([]Word, error) {
 			} else {
 				num, err := strconv.ParseUint(parts[1], 10, 64)
 				if err != nil {
-					return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
+					return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
 				}
 				operand = Word(num)
 			}
@@ -209,28 +203,32 @@ func Assemble(input string) ([]Word, error) {
 			if strings.HasPrefix(parts[1], ".") {
 				labelAddr, ok := labels[parts[1]]
 				if !ok {
-					return nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedLabel, parts[1], lineNo+1)
+					return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedLabel, parts[1], lineNo+1)
 				}
 				operand = Word(labelAddr)
 			} else {
 				loc, err := strconv.ParseUint(parts[1], 10, 64)
 				if err != nil {
-					return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
+					return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
 				}
 				operand = Word(loc)
 			}
 			program = append(program, OpJUMP, operand)
 		default:
-			return nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, parts[0], lineNo+1)
+			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, parts[0], lineNo+1)
 		}
 	}
-	return program, nil
+	return program, labels, nil
 }
 
 func (g *Machine) AssembleAndRun(input string) error {
-	program, err := Assemble(input)
+	program, labels, err := Assemble(input)
 	if err != nil {
 		return err
+	}
+	// Begin at the .start label if it exists
+	if start, ok := labels[".start"]; ok {
+		g.P = Word(start)
 	}
 	g.RunProgram(program)
 	return nil

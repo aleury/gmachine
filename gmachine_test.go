@@ -139,7 +139,7 @@ func TestSETA(t *testing.T) {
 func TestAssemble(t *testing.T) {
 	t.Parallel()
 	want := []gmachine.Word{gmachine.OpINCA, gmachine.OpHALT}
-	program, err := gmachine.Assemble("INCA\nHALT")
+	program, _, err := gmachine.Assemble("INCA\nHALT")
 	if err != nil {
 		t.Fatal("didn't expect an error", err)
 	}
@@ -150,7 +150,7 @@ func TestAssemble(t *testing.T) {
 
 func TestAssembleInvalidSourceCode(t *testing.T) {
 	t.Parallel()
-	_, err := gmachine.Assemble("ILLEGAL")
+	_, _, err := gmachine.Assemble("ILLEGAL")
 	wantErr := gmachine.ErrUndefinedInstruction
 	if !errors.Is(err, wantErr) {
 		t.Errorf("wanted error %v, got %v", wantErr, err)
@@ -271,7 +271,7 @@ func TestJUMPWithInvalidNumber(t *testing.T) {
 func TestAssemble_SkipsComments(t *testing.T) {
 	t.Parallel()
 	want := []gmachine.Word{}
-	got, err := gmachine.Assemble("; this is a comment")
+	got, _, err := gmachine.Assemble("; this is a comment")
 	if err != nil {
 		t.Fatal("didn't expect an error:", err)
 	}
@@ -407,7 +407,7 @@ ADDA X
 func TestSubroutineLabel(t *testing.T) {
 	t.Parallel()
 	want := []gmachine.Word{gmachine.OpSETA, gmachine.Word(42), gmachine.OpOUTA}
-	got, err := gmachine.Assemble(`
+	got, _, err := gmachine.Assemble(`
 .test
 SETA 42
 OUTA
@@ -438,7 +438,7 @@ func TestSubRoutineLabelsAreReplacedWithMemoryAddress(t *testing.T) {
 		gmachine.OpJUMP,
 		gmachine.Word(4),
 	}
-	got, err := gmachine.Assemble(`
+	got, _, err := gmachine.Assemble(`
 .test1
 SETA 42
 OUTA
