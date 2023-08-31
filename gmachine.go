@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -41,6 +42,7 @@ const (
 	ExceptionOutOfMemory
 )
 
+var ErrMissingLabel error = errors.New("missing label")
 var ErrInvalidNumber error = errors.New("invalid number")
 var ErrUndefinedLabel error = errors.New("undefined label")
 var ErrInvalidRegister error = errors.New("invalid register")
@@ -132,13 +134,19 @@ func (g *Machine) Run() {
 func (g *Machine) RunProgram(program []Word) {
 	// Load program into machine
 	copy(g.Memory[g.MemOffset:], program)
-
 	g.Run()
 }
 
-func Assemble(input string) ([]Word, map[string]uint64, error) {
+type Ref struct {
+	Name    string
+	Line    int
+	Address Word
+}
+
+func Assemble(input string) ([]Word, error) {
 	program := []Word{}
-	labels := map[string]uint64{}
+	refs := []Ref{}
+	labels := map[string]Word{}
 	lines := strings.Split(strings.TrimSpace(input), "\n")
 	for lineNo, line := range lines {
 		// Ignore comments
@@ -151,9 +159,9 @@ func Assemble(input string) ([]Word, map[string]uint64, error) {
 			continue
 		}
 
-		// Store memory address of  labels
+		// Store memory address of labels
 		if strings.HasPrefix(line, ".") {
-			labels[line] = uint64(len(program))
+			labels[strings.TrimPrefix(line, ".")] = Word(len(program))
 			continue
 		}
 
@@ -176,13 +184,13 @@ func Assemble(input string) ([]Word, map[string]uint64, error) {
 		case "ADDA":
 			reg, ok := registers[parts[1]]
 			if !ok {
-				return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, parts[1], lineNo+1)
+				return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, parts[1], lineNo+1)
 			}
 			program = append(program, OpADDA, reg)
 		case "MOVA":
 			reg, ok := registers[parts[1]]
 			if !ok {
-				return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, parts[1], lineNo+1)
+				return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, parts[1], lineNo+1)
 			}
 			program = append(program, OpMOVA, reg)
 		case "SETA":
@@ -193,42 +201,51 @@ func Assemble(input string) ([]Word, map[string]uint64, error) {
 			} else {
 				num, err := strconv.ParseUint(parts[1], 10, 64)
 				if err != nil {
-					return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
+					return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
 				}
 				operand = Word(num)
 			}
 			program = append(program, OpSETA, operand)
 		case "JUMP":
+			program = append(program, OpJUMP)
 			var operand Word
-			if strings.HasPrefix(parts[1], ".") {
-				labelAddr, ok := labels[parts[1]]
-				if !ok {
-					return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedLabel, parts[1], lineNo+1)
-				}
-				operand = Word(labelAddr)
-			} else {
+			r, _ := utf8.DecodeRuneInString(parts[1])
+			if unicode.IsDigit(r) {
 				loc, err := strconv.ParseUint(parts[1], 10, 64)
 				if err != nil {
-					return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
+					return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
 				}
 				operand = Word(loc)
+			} else {
+				ref := Ref{
+					Name:    parts[1],
+					Line:    lineNo + 1,
+					Address: Word(uint64(len(program))),
+				}
+				refs = append(refs, ref)
+				operand = Word(0)
 			}
-			program = append(program, OpJUMP, operand)
+			program = append(program, operand)
 		default:
-			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, parts[0], lineNo+1)
+			return nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, parts[0], lineNo+1)
 		}
 	}
-	return program, labels, nil
+
+	// Resolve references
+	for _, ref := range refs {
+		addr, ok := labels[ref.Name]
+		if !ok {
+			return nil, fmt.Errorf("%w: %s at line %d", ErrMissingLabel, ref.Name, ref.Line)
+		}
+		program[ref.Address] = addr
+	}
+	return program, nil
 }
 
 func (g *Machine) AssembleAndRun(input string) error {
-	program, labels, err := Assemble(input)
+	program, err := Assemble(input)
 	if err != nil {
 		return err
-	}
-	// Begin at the .start label if it exists
-	if start, ok := labels[".start"]; ok {
-		g.P = Word(start)
 	}
 	g.RunProgram(program)
 	return nil
