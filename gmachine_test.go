@@ -258,7 +258,7 @@ INCA
 func TestJUMPWithInvalidNumber(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	err := g.AssembleAndRun("JUMP a")
+	err := g.AssembleAndRun("JUMP 2a")
 	wantErr := gmachine.ErrInvalidNumber
 	if err == nil {
 		t.Fatal("expected an error to be returned for invalid argument to JUMP")
@@ -401,5 +401,75 @@ ADDA X
 	var wantA gmachine.Word = 10
 	if wantA != g.A {
 		t.Errorf("want A %d, got %d", wantA, g.A)
+	}
+}
+
+func TestSubroutineLabel(t *testing.T) {
+	t.Parallel()
+	want := []gmachine.Word{gmachine.OpSETA, gmachine.Word(42), gmachine.OpOUTA}
+	got, err := gmachine.Assemble(`
+.test
+SETA 42
+OUTA
+`)
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestHandlesUnresolvedReferenceByReturningParseError(t *testing.T) {
+	t.Parallel()
+	_, err := gmachine.Assemble("JUMP foo")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+}
+
+func TestSubRoutineLabelsAreReplacedWithMemoryAddress(t *testing.T) {
+	t.Parallel()
+	want := []gmachine.Word{
+		// Jump to .start
+		gmachine.OpJUMP,
+		gmachine.Word(11),
+		// .test1
+		gmachine.OpSETA,
+		gmachine.Word(42),
+		gmachine.OpOUTA,
+		gmachine.OpHALT,
+		// .test2
+		gmachine.OpSETA,
+		gmachine.Word(41),
+		gmachine.OpINCA,
+		gmachine.OpOUTA,
+		gmachine.OpHALT,
+		// .start
+		gmachine.OpJUMP,
+		gmachine.Word(6),
+	}
+	got, err := gmachine.Assemble(`
+JUMP start
+
+.test1
+SETA 42
+OUTA
+HALT
+
+.test2
+SETA 41
+INCA
+OUTA
+HALT
+
+.start
+JUMP test2
+`)
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }

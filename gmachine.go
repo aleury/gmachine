@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -41,7 +42,9 @@ const (
 	ExceptionOutOfMemory
 )
 
+var ErrMissingLabel error = errors.New("missing label")
 var ErrInvalidNumber error = errors.New("invalid number")
+var ErrUndefinedLabel error = errors.New("undefined label")
 var ErrInvalidRegister error = errors.New("invalid register")
 var ErrUndefinedInstruction error = errors.New("undefined instruction")
 
@@ -129,17 +132,39 @@ func (g *Machine) Run() {
 }
 
 func (g *Machine) RunProgram(program []Word) {
-	copy(g.Memory[g.MemOffset+g.P:], program)
+	// Load program into machine
+	copy(g.Memory[g.MemOffset:], program)
 	g.Run()
+}
+
+type Ref struct {
+	Name    string
+	Line    int
+	Address Word
 }
 
 func Assemble(input string) ([]Word, error) {
 	program := []Word{}
+	refs := []Ref{}
+	labels := map[string]Word{}
 	lines := strings.Split(strings.TrimSpace(input), "\n")
 	for lineNo, line := range lines {
+		// Ignore comments
 		if strings.HasPrefix(line, ";") {
 			continue
 		}
+
+		// Skip whitespace
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		// Store memory address of labels
+		if strings.HasPrefix(line, ".") {
+			labels[strings.TrimPrefix(line, ".")] = Word(len(program))
+			continue
+		}
+
 		parts := strings.SplitN(line, " ", 2)
 		switch parts[0] {
 		case "HALT":
@@ -182,14 +207,37 @@ func Assemble(input string) ([]Word, error) {
 			}
 			program = append(program, OpSETA, operand)
 		case "JUMP":
-			loc, err := strconv.ParseUint(parts[1], 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
+			program = append(program, OpJUMP)
+			var operand Word
+			r, _ := utf8.DecodeRuneInString(parts[1])
+			if unicode.IsDigit(r) {
+				loc, err := strconv.ParseUint(parts[1], 10, 64)
+				if err != nil {
+					return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, parts[1], lineNo+1)
+				}
+				operand = Word(loc)
+			} else {
+				ref := Ref{
+					Name:    parts[1],
+					Line:    lineNo + 1,
+					Address: Word(uint64(len(program))),
+				}
+				refs = append(refs, ref)
+				operand = Word(0)
 			}
-			program = append(program, OpJUMP, Word(loc))
+			program = append(program, operand)
 		default:
 			return nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, parts[0], lineNo+1)
 		}
+	}
+
+	// Resolve references
+	for _, ref := range refs {
+		addr, ok := labels[ref.Name]
+		if !ok {
+			return nil, fmt.Errorf("%w: %s at line %d", ErrMissingLabel, ref.Name, ref.Line)
+		}
+		program[ref.Address] = addr
 	}
 	return program, nil
 }

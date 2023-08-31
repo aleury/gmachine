@@ -1,0 +1,32 @@
+.hello
+SETA 'h'
+OUTA
+SETA 'e'
+OUTA
+SETA 'l'
+OUTA
+SETA 'l'
+OUTA
+SETA 'o'
+OUTA
+JUMP 39
+
+.world
+SETA ' '
+OUTA
+SETA 'w'
+OUTA
+SETA 'o'
+OUTA
+SETA 'r'
+OUTA
+SETA 'l'
+OUTA
+SETA 'd'
+OUTA
+JUMP 41
+
+.start
+JUMP .hello
+JUMP .world
+HALT
