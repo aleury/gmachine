@@ -7,6 +7,23 @@ import (
 	"testing"
 )
 
+func TestNextToken_ReturnsIllegalTokenForUnknownToken(t *testing.T) {
+	t.Parallel()
+	l := lexer.New("~")
+	wantLiteral := "~"
+	var wantType token.TokenType = token.ILLEGAL
+	got, err := l.NextToken()
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	if wantLiteral != got.Literal {
+		t.Errorf("token literal wrong - want=%q, got=%q", wantLiteral, got.Literal)
+	}
+	if wantType != got.Type {
+		t.Errorf("token type wrong - want=%q, got=%q", wantType, got.Type)
+	}
+}
+
 func TestNextToken_ReturnsErrorForInvalidCharacterLiteral(t *testing.T) {
 	t.Parallel()
 	l := lexer.New("'c")
@@ -20,8 +37,7 @@ func TestNextToken_ReturnsErrorForInvalidCharacterLiteral(t *testing.T) {
 }
 
 func TestNextToken_TokenizesValidCode(t *testing.T) {
-	input := `
-; this is a comment
+	input := `; this is a comment
 JUMP 2
 JUMP start
 
@@ -43,34 +59,34 @@ PSHA
 POPA
 MOVA X
 OUTA
-HALT
-`
+HALT`
 	tests := []struct {
 		expectedType    token.TokenType
 		expectedLiteral string
+		expectedLine    int
 	}{
-		{token.OPCODE, "JUMP"},
-		{token.INT, "2"},
-		{token.OPCODE, "JUMP"},
-		{token.IDENT, "start"},
-		{token.IDENT, ".test"},
-		{token.OPCODE, "SETA"},
-		{token.CHAR, "'a'"},
-		{token.OPCODE, "OUTA"},
-		{token.OPCODE, "HALT"},
-		{token.IDENT, ".start"},
-		{token.OPCODE, "NOOP"},
-		{token.OPCODE, "SETA"},
-		{token.INT, "42"},
-		{token.OPCODE, "INCA"},
-		{token.OPCODE, "DECA"},
-		{token.OPCODE, "PSHA"},
-		{token.OPCODE, "POPA"},
-		{token.OPCODE, "MOVA"},
-		{token.REGISTER, "X"},
-		{token.OPCODE, "OUTA"},
-		{token.OPCODE, "HALT"},
-		{token.EOF, ""},
+		{token.OPCODE, "JUMP", 2},
+		{token.INT, "2", 2},
+		{token.OPCODE, "JUMP", 3},
+		{token.IDENT, "start", 3},
+		{token.IDENT, ".test", 7},
+		{token.OPCODE, "SETA", 8},
+		{token.CHAR, "'a'", 8},
+		{token.OPCODE, "OUTA", 9},
+		{token.OPCODE, "HALT", 10},
+		{token.IDENT, ".start", 14},
+		{token.OPCODE, "NOOP", 15},
+		{token.OPCODE, "SETA", 16},
+		{token.INT, "42", 16},
+		{token.OPCODE, "INCA", 17},
+		{token.OPCODE, "DECA", 18},
+		{token.OPCODE, "PSHA", 19},
+		{token.OPCODE, "POPA", 20},
+		{token.OPCODE, "MOVA", 21},
+		{token.REGISTER, "X", 21},
+		{token.OPCODE, "OUTA", 22},
+		{token.OPCODE, "HALT", 23},
+		{token.EOF, "", 23},
 	}
 
 	l := lexer.New(input)
@@ -84,6 +100,9 @@ HALT
 		}
 		if tok.Literal != tt.expectedLiteral {
 			t.Fatalf("tests[%d] - literal wrong. wanted=%q, got=%q", i, tt.expectedLiteral, tok.Literal)
+		}
+		if tok.Line != tt.expectedLine {
+			t.Fatalf("tests[%d] - line number wrong. wanted=%d, got=%d", i, tt.expectedLine, tok.Line)
 		}
 	}
 }

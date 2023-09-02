@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"errors"
+	"fmt"
 	"gmachine/token"
 	"unicode"
 	"unicode/utf8"
@@ -11,6 +12,7 @@ var ErrInvalidCharacterLiteral error = errors.New("invalid character literal, mi
 
 type Lexer struct {
 	input        string
+	line         int  // current line number in input (for current char)
 	position     int  // current position in input (points to current char)
 	readPosition int  // current reading position in input (after current char)
 	ch           rune // current char under examination
@@ -18,7 +20,7 @@ type Lexer struct {
 }
 
 func New(input string) *Lexer {
-	l := &Lexer{input: input}
+	l := &Lexer{input: input, line: 1}
 	l.readChar()
 	return l
 }
@@ -35,11 +37,15 @@ func (l *Lexer) NextToken() (token.Token, error) {
 			if err != nil {
 				return token.Token{}, err
 			}
-			return token.Token{Type: token.CHAR, Literal: char}, nil
+			return token.Token{Type: token.CHAR, Literal: char, Line: l.line}, nil
 		case 0:
-			return token.Token{Type: token.EOF, Literal: ""}, nil
+			return token.Token{
+				Type:    token.EOF,
+				Literal: "",
+				Line:    l.line,
+			}, nil
 		default:
-			var tok token.Token
+			tok := token.Token{Line: l.line}
 			if unicode.IsDigit(l.ch) {
 				tok.Type = token.INT
 				tok.Literal = l.readInt()
@@ -75,7 +81,7 @@ func (l *Lexer) readCharacter() (string, error) {
 	start := l.position
 	l.readChar()
 	if l.peek() != '\'' {
-		return "", ErrInvalidCharacterLiteral
+		return "", fmt.Errorf("%w: %s at line %d", ErrInvalidCharacterLiteral, l.input[start:l.readPosition], l.line)
 	}
 	l.readChar()
 	l.readChar()
@@ -103,6 +109,9 @@ func (l *Lexer) readIdentifier() string {
 
 func (l *Lexer) skipWhitespace() {
 	for unicode.IsSpace(l.ch) {
+		if l.ch == '\n' {
+			l.line++
+		}
 		l.readChar()
 	}
 }
