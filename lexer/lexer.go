@@ -1,10 +1,13 @@
 package lexer
 
 import (
+	"errors"
 	"gmachine/token"
 	"unicode"
 	"unicode/utf8"
 )
+
+var ErrInvalidCharacterLiteral error = errors.New("invalid character literal, missing closing '")
 
 type Lexer struct {
 	input        string
@@ -20,7 +23,7 @@ func New(input string) *Lexer {
 	return l
 }
 
-func (l *Lexer) NextToken() token.Token {
+func (l *Lexer) NextToken() (token.Token, error) {
 	for {
 		l.skipWhitespace()
 		switch l.ch {
@@ -28,9 +31,13 @@ func (l *Lexer) NextToken() token.Token {
 			l.readUntil('\n')
 			continue
 		case '\'':
-			return token.Token{Type: token.CHAR, Literal: l.readCharacter()}
+			char, err := l.readCharacter()
+			if err != nil {
+				return token.Token{}, err
+			}
+			return token.Token{Type: token.CHAR, Literal: char}, nil
 		case 0:
-			return token.Token{Type: token.EOF, Literal: ""}
+			return token.Token{Type: token.EOF, Literal: ""}, nil
 		default:
 			var tok token.Token
 			if unicode.IsDigit(l.ch) {
@@ -43,7 +50,7 @@ func (l *Lexer) NextToken() token.Token {
 				tok.Type = token.ILLEGAL
 				tok.Literal = string(l.ch)
 			}
-			return tok
+			return tok, nil
 		}
 	}
 }
@@ -64,16 +71,15 @@ func (l *Lexer) peek() rune {
 	return nextChar
 }
 
-func (l *Lexer) readCharacter() string {
+func (l *Lexer) readCharacter() (string, error) {
 	start := l.position
 	l.readChar()
 	if l.peek() != '\'' {
-		// TODO(adam): Handle this better by returning error?
-		panic("invalid character literal")
+		return "", ErrInvalidCharacterLiteral
 	}
 	l.readChar()
 	l.readChar()
-	return l.input[start:l.position]
+	return l.input[start:l.position], nil
 }
 
 func (l *Lexer) readInt() string {
