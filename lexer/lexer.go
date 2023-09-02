@@ -49,7 +49,7 @@ func (l *Lexer) NextToken() (token.Token, error) {
 			if unicode.IsDigit(l.ch) {
 				tok.Type = token.INT
 				tok.Literal = l.readInt()
-			} else if unicode.IsLetter(l.ch) || (l.ch == '.' && unicode.IsLetter(l.peek())) {
+			} else if unicode.IsLetter(l.ch) || (l.ch == '.' && unicode.IsLetter(l.peekChar())) {
 				tok.Literal = l.readIdentifier()
 				tok.Type = token.LookupIdent(tok.Literal)
 			} else {
@@ -69,7 +69,7 @@ func (l *Lexer) readUntil(r rune) string {
 	return l.input[start:l.position]
 }
 
-func (l *Lexer) peek() rune {
+func (l *Lexer) peekChar() rune {
 	if l.readPosition >= len(l.input) {
 		return 0
 	}
@@ -80,7 +80,7 @@ func (l *Lexer) peek() rune {
 func (l *Lexer) readCharacter() (string, error) {
 	start := l.position
 	l.readChar()
-	if l.peek() != '\'' {
+	if l.peekChar() != '\'' {
 		return "", fmt.Errorf("%w: %s at line %d", ErrInvalidCharacterLiteral, l.input[start:l.readPosition], l.line)
 	}
 	l.readChar()
