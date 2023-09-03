@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 )
 
+var ErrInvalidNumberLiteral error = errors.New("invalid number")
 var ErrInvalidCharacterLiteral error = errors.New("invalid character literal, missing closing '")
 
 type Lexer struct {
@@ -48,7 +49,11 @@ func (l *Lexer) NextToken() (token.Token, error) {
 			tok := token.Token{Line: l.line}
 			if unicode.IsDigit(l.ch) {
 				tok.Type = token.INT
-				tok.Literal = l.readInt()
+				value, err := l.readInt()
+				if err != nil {
+					return token.Token{}, err
+				}
+				tok.Literal = value
 			} else if unicode.IsLetter(l.ch) || (l.ch == '.' && unicode.IsLetter(l.peekChar())) {
 				tok.Literal = l.readIdentifier()
 				tok.Type = token.LookupIdent(tok.Literal)
@@ -63,7 +68,7 @@ func (l *Lexer) NextToken() (token.Token, error) {
 
 func (l *Lexer) readUntil(r rune) string {
 	start := l.position
-	for l.ch != r {
+	for l.ch != r && l.ch != 0 {
 		l.readChar()
 	}
 	return l.input[start:l.position]
@@ -88,12 +93,15 @@ func (l *Lexer) readCharacter() (string, error) {
 	return l.input[start:l.position], nil
 }
 
-func (l *Lexer) readInt() string {
+func (l *Lexer) readInt() (string, error) {
 	start := l.position
 	for unicode.IsDigit(l.ch) {
 		l.readChar()
 	}
-	return l.input[start:l.position]
+	if unicode.IsLetter(l.ch) {
+		return "", fmt.Errorf("%w: %s at line %d", ErrInvalidNumberLiteral, l.input[start:l.readPosition], l.line)
+	}
+	return l.input[start:l.position], nil
 }
 
 func (l *Lexer) readIdentifier() string {

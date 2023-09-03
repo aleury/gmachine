@@ -27,12 +27,26 @@ func TestNextToken_ReturnsIllegalTokenForUnknownToken(t *testing.T) {
 func TestNextToken_ReturnsErrorForInvalidCharacterLiteral(t *testing.T) {
 	t.Parallel()
 	l := lexer.New("'c")
+	wantErr := lexer.ErrInvalidCharacterLiteral
 	_, err := l.NextToken()
 	if err == nil {
 		t.Fatal("expected an error, but didn't receive one")
 	}
-	if !errors.Is(err, lexer.ErrInvalidCharacterLiteral) {
-		t.Errorf("error wrong, wanted=%q, got=%q", lexer.ErrInvalidCharacterLiteral, err)
+	if !errors.Is(err, wantErr) {
+		t.Errorf("error wrong, wanted=%q, got=%q", wantErr, err)
+	}
+}
+
+func TestNextToken_ReturnsErrorForInvalidNumberLiteral(t *testing.T) {
+	t.Parallel()
+	l := lexer.New("2a")
+	wantErr := lexer.ErrInvalidNumberLiteral
+	_, err := l.NextToken()
+	if err == nil {
+		t.Fatal("expected an error, but didn't receive one")
+	}
+	if !errors.Is(err, wantErr) {
+		t.Errorf("error wrong, wanted=%q, got=%q", wantErr, err)
 	}
 }
 

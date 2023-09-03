@@ -3,6 +3,7 @@ package gmachine_test
 import (
 	"bytes"
 	"errors"
+	"gmachine/lexer"
 	"io"
 	"testing"
 
@@ -148,10 +149,10 @@ func TestAssemble(t *testing.T) {
 	}
 }
 
-func TestAssembleInvalidSourceCode(t *testing.T) {
+func TestAssemble_ReturnsErrorForUnknownInstruction(t *testing.T) {
 	t.Parallel()
 	_, err := gmachine.Assemble("ILLEGAL")
-	wantErr := gmachine.ErrUndefinedInstruction
+	wantErr := gmachine.ErrUnknownIdentifier
 	if !errors.Is(err, wantErr) {
 		t.Errorf("wanted error %v, got %v", wantErr, err)
 	}
@@ -170,11 +171,11 @@ func TestAssembleAndRun(t *testing.T) {
 	}
 }
 
-func TestSETAWithInvalidNumber(t *testing.T) {
+func TestSETA_ReturnsErrorForInvalidNumber(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	err := g.AssembleAndRun("SETA a")
-	wantErr := gmachine.ErrInvalidNumber
+	err := g.AssembleAndRun("SETA 2a")
+	wantErr := lexer.ErrInvalidNumberLiteral
 	if err == nil {
 		t.Fatal("expected an error to be returned for invalid argument to SETA")
 	}
@@ -259,7 +260,7 @@ func TestJUMPWithInvalidNumber(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	err := g.AssembleAndRun("JUMP 2a")
-	wantErr := gmachine.ErrInvalidNumber
+	wantErr := lexer.ErrInvalidNumberLiteral
 	if err == nil {
 		t.Fatal("expected an error to be returned for invalid argument to JUMP")
 	}
@@ -420,11 +421,27 @@ OUTA
 	}
 }
 
-func TestHandlesUnresolvedReferenceByReturningParseError(t *testing.T) {
+func TestAssemble_ReturnsErrorWhenGivenAnUndefinedIdentifer(t *testing.T) {
 	t.Parallel()
+	wantErr := gmachine.ErrUnknownIdentifier
 	_, err := gmachine.Assemble("JUMP foo")
 	if err == nil {
 		t.Fatal("expected an error")
+	}
+	if !errors.Is(err, wantErr) {
+		t.Errorf("wanted error %v, got %v", wantErr, err)
+	}
+}
+
+func TestAssemble_ReturnsErrorWhenJumpIsPassedInvalidArgument(t *testing.T) {
+	t.Parallel()
+	wantErr := gmachine.ErrInvalidOperand
+	_, err := gmachine.Assemble("JUMP 'a'")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if !errors.Is(err, wantErr) {
+		t.Errorf("wanted error %v, got %v", wantErr, err)
 	}
 }
 
@@ -452,19 +469,19 @@ func TestSubRoutineLabelsAreReplacedWithMemoryAddress(t *testing.T) {
 	got, err := gmachine.Assemble(`
 JUMP start
 
-.test1
+.testA
 SETA 42
 OUTA
 HALT
 
-.test2
+.testB
 SETA 41
 INCA
 OUTA
 HALT
 
 .start
-JUMP test2
+JUMP testB
 `)
 	if err != nil {
 		t.Fatal("didn't expect an error:", err)
