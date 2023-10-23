@@ -4,11 +4,12 @@ const (
 	ILLEGAL = "ILLEGAL"
 	EOF     = "EOF"
 
-	OPCODE   = "OPCODE"
-	REGISTER = "REGISTER"
-	IDENT    = "IDENT"
-	INT      = "INT"
-	CHAR     = "CHAR"
+	OPCODE           = "OPCODE"
+	REGISTER         = "REGISTER"
+	LABEL_DEFINITION = "LABEL_DEFINITION" // TODO: Add to lexer
+	IDENT            = "IDENT"
+	INT              = "INT"
+	CHAR             = "CHAR"
 )
 
 var registers = map[string]TokenType{
@@ -33,7 +34,7 @@ type TokenType string
 
 type Token struct {
 	Type    TokenType
-	Literal string
+	Literal string // Possibily rename to Value
 	Line    int
 }
 

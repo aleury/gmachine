@@ -175,19 +175,18 @@ loop:
 			return nil, errors.New("illegal token")
 		case token.EOF:
 			break loop
+		case token.LABEL_DEFINITION:
+			labels[strings.TrimPrefix(tok.Literal, ".")] = Word(len(program))
 		case token.IDENT:
-			if strings.HasPrefix(tok.Literal, ".") {
-				labels[strings.TrimPrefix(tok.Literal, ".")] = Word(len(program))
-			} else {
-				ref := Ref{
-					Name:    tok.Literal,
-					Line:    tok.Line,
-					Address: Word(len(program)),
-				}
-				refs = append(refs, ref)
-				program = append(program, Word(0))
+			ref := Ref{
+				Name:    tok.Literal,
+				Line:    tok.Line,
+				Address: Word(len(program)),
 			}
+			refs = append(refs, ref)
+			program = append(program, Word(0))
 		case token.OPCODE:
+			// consider function to assemble op code
 			opcode, ok := opcodes[tok.Literal]
 			if !ok {
 				return nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, tok.Literal, tok.Line)
@@ -200,6 +199,7 @@ loop:
 				if err != nil {
 					return nil, err
 				}
+				// TODO: assemble register abstraction
 				reg, ok := registers[operandTok.Literal]
 				if !ok {
 					return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, operandTok.Literal, operandTok.Line)

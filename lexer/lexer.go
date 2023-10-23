@@ -29,40 +29,46 @@ func New(input string) *Lexer {
 func (l *Lexer) NextToken() (token.Token, error) {
 	for {
 		l.skipWhitespace()
-		switch l.ch {
-		case ';':
+		switch {
+		case l.ch == ';':
 			l.readUntil('\n')
 			continue
-		case '\'':
+		case l.ch == '\'':
 			char, err := l.readCharacter()
 			if err != nil {
 				return token.Token{}, err
 			}
-			return token.Token{Type: token.CHAR, Literal: char, Line: l.line}, nil
-		case 0:
-			return token.Token{
-				Type:    token.EOF,
-				Literal: "",
-				Line:    l.line,
-			}, nil
-		default:
-			tok := token.Token{Line: l.line}
-			if unicode.IsDigit(l.ch) {
-				tok.Type = token.INT
-				value, err := l.readInt()
-				if err != nil {
-					return token.Token{}, err
-				}
-				tok.Literal = value
-			} else if unicode.IsLetter(l.ch) || (l.ch == '.' && unicode.IsLetter(l.peekChar())) {
-				tok.Literal = l.readIdentifier()
-				tok.Type = token.LookupIdent(tok.Literal)
-			} else {
-				tok.Type = token.ILLEGAL
-				tok.Literal = string(l.ch)
+			return l.newToken(token.CHAR, char), nil
+		case l.ch == 0:
+			return l.newToken(token.EOF, ""), nil
+		case unicode.IsDigit(l.ch):
+			value, err := l.readInt()
+			if err != nil {
+				return token.Token{}, err
 			}
-			return tok, nil
+			return l.newToken(token.INT, value), nil
+		case l.ch == '.':
+			if !unicode.IsLetter(l.peekChar()) {
+				return token.Token{}, fmt.Errorf("invalid label definition")
+			}
+			literal := l.readIdentifier()
+			return l.newToken(token.LABEL_DEFINITION, literal), nil
+		case unicode.IsLetter(l.ch):
+			literal := l.readIdentifier()
+			kind := token.LookupIdent(literal)
+			return l.newToken(kind, literal), nil
+		default:
+			// Should we continue lexing if there is an illegal token?
+			return l.newToken(token.ILLEGAL, string(l.ch)), nil
 		}
+	}
+}
+
+func (l *Lexer) newToken(kind token.TokenType, literal string) token.Token {
+	return token.Token{
+		Type:    kind,
+		Literal: literal,
+		Line:    l.line,
 	}
 }
 
