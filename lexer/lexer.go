@@ -2,12 +2,12 @@ package lexer
 
 import (
 	"errors"
-	"fmt"
 	"gmachine/token"
 	"unicode"
 	"unicode/utf8"
 )
 
+var ErrInvalidNumberLiteral error = errors.New("invalid number")
 var ErrInvalidCharacterLiteral error = errors.New("invalid character literal, missing closing '")
 
 type Lexer struct {
@@ -25,74 +25,64 @@ func New(input string) *Lexer {
 	return l
 }
 
-func (l *Lexer) NextToken() (token.Token, error) {
+func (l *Lexer) NextToken() token.Token {
 	for {
 		l.skipWhitespace()
-		switch l.ch {
-		case ';':
+		switch {
+		case l.ch == ';':
 			l.readUntil('\n')
 			continue
-		case '\'':
-			char, err := l.readCharacter()
-			if err != nil {
-				return token.Token{}, err
-			}
-			return token.Token{Type: token.CHAR, Literal: char, Line: l.line}, nil
-		case 0:
-			return token.Token{
-				Type:    token.EOF,
-				Literal: "",
-				Line:    l.line,
-			}, nil
+		case l.ch == '\'':
+			char := l.readCharacter()
+			return l.newToken(token.CHAR, char)
+		case l.ch == 0:
+			return l.newToken(token.EOF, "")
+		case unicode.IsDigit(l.ch):
+			value := l.readUntil('\n')
+			return l.newToken(token.INT, value)
+		case l.ch == '.':
+			literal := l.readIdentifier()
+			return l.newToken(token.LABEL_DEFINITION, literal)
+		case unicode.IsLetter(l.ch):
+			literal := l.readIdentifier()
+			kind := token.LookupIdent(literal)
+			return l.newToken(kind, literal)
 		default:
-			tok := token.Token{Line: l.line}
-			if unicode.IsDigit(l.ch) {
-				tok.Type = token.INT
-				tok.Literal = l.readInt()
-			} else if unicode.IsLetter(l.ch) || (l.ch == '.' && unicode.IsLetter(l.peekChar())) {
-				tok.Literal = l.readIdentifier()
-				tok.Type = token.LookupIdent(tok.Literal)
-			} else {
-				tok.Type = token.ILLEGAL
-				tok.Literal = string(l.ch)
-			}
-			return tok, nil
+			// Should we continue lexing if there is an illegal token?
+			return l.newToken(token.ILLEGAL, string(l.ch))
 		}
 	}
 }
 
-func (l *Lexer) readUntil(r rune) string {
-	start := l.position
-	for l.ch != r {
-		l.readChar()
+func (l *Lexer) newToken(kind token.TokenType, literal string) token.Token {
+	return token.Token{
+		Type:    kind,
+		Literal: literal,
+		Line:    l.line,
 	}
-	return l.input[start:l.position]
 }
 
 func (l *Lexer) peekChar() rune {
 	if l.readPosition >= len(l.input) {
 		return 0
 	}
-	nextChar, _ := utf8.DecodeRuneInString(l.input[l.readPosition:])
-	return nextChar
+	ch, _ := utf8.DecodeRuneInString(l.input[l.readPosition:])
+	return ch
 }
 
-func (l *Lexer) readCharacter() (string, error) {
+func (l *Lexer) readUntil(r rune) string {
 	start := l.position
-	l.readChar()
-	if l.peekChar() != '\'' {
-		return "", fmt.Errorf("%w: %s at line %d", ErrInvalidCharacterLiteral, l.input[start:l.readPosition], l.line)
-	}
-	l.readChar()
-	l.readChar()
-	return l.input[start:l.position], nil
-}
-
-func (l *Lexer) readInt() string {
-	start := l.position
-	for unicode.IsDigit(l.ch) {
+	for l.ch != r && l.ch != 0 {
 		l.readChar()
 	}
+	return l.input[start:l.position]
+}
+
+func (l *Lexer) readCharacter() string {
+	start := l.position
+	l.readChar()
+	l.readChar()
+	l.readChar()
 	return l.input[start:l.position]
 }
 

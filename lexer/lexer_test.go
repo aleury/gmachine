@@ -1,7 +1,6 @@
 package lexer_test
 
 import (
-	"errors"
 	"gmachine/lexer"
 	"gmachine/token"
 	"testing"
@@ -12,27 +11,12 @@ func TestNextToken_ReturnsIllegalTokenForUnknownToken(t *testing.T) {
 	l := lexer.New("~")
 	wantLiteral := "~"
 	var wantType token.TokenType = token.ILLEGAL
-	got, err := l.NextToken()
-	if err != nil {
-		t.Fatal("didn't expect an error:", err)
-	}
+	got := l.NextToken()
 	if wantLiteral != got.Literal {
 		t.Errorf("token literal wrong - want=%q, got=%q", wantLiteral, got.Literal)
 	}
 	if wantType != got.Type {
 		t.Errorf("token type wrong - want=%q, got=%q", wantType, got.Type)
-	}
-}
-
-func TestNextToken_ReturnsErrorForInvalidCharacterLiteral(t *testing.T) {
-	t.Parallel()
-	l := lexer.New("'c")
-	_, err := l.NextToken()
-	if err == nil {
-		t.Fatal("expected an error, but didn't receive one")
-	}
-	if !errors.Is(err, lexer.ErrInvalidCharacterLiteral) {
-		t.Errorf("error wrong, wanted=%q, got=%q", lexer.ErrInvalidCharacterLiteral, err)
 	}
 }
 
@@ -69,12 +53,12 @@ HALT`
 		{token.INT, "2", 2},
 		{token.OPCODE, "JUMP", 3},
 		{token.IDENT, "start", 3},
-		{token.IDENT, ".test", 7},
+		{token.LABEL_DEFINITION, ".test", 7},
 		{token.OPCODE, "SETA", 8},
 		{token.CHAR, "'a'", 8},
 		{token.OPCODE, "OUTA", 9},
 		{token.OPCODE, "HALT", 10},
-		{token.IDENT, ".start", 14},
+		{token.LABEL_DEFINITION, ".start", 14},
 		{token.OPCODE, "NOOP", 15},
 		{token.OPCODE, "SETA", 16},
 		{token.INT, "42", 16},
@@ -91,10 +75,7 @@ HALT`
 
 	l := lexer.New(input)
 	for i, tt := range tests {
-		tok, err := l.NextToken()
-		if err != nil {
-			t.Fatalf("tests[%d] - didn't expect an error: %q", i, err)
-		}
+		tok := l.NextToken()
 		if tok.Type != tt.expectedType {
 			t.Fatalf("tests[%d] - tokentype wrong. wanted=%q, got=%q", i, tt.expectedType, tok.Type)
 		}
