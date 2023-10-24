@@ -3,7 +3,6 @@ package gmachine_test
 import (
 	"bytes"
 	"errors"
-	"gmachine/lexer"
 	"io"
 	"testing"
 
@@ -175,7 +174,7 @@ func TestSETA_ReturnsErrorForInvalidNumber(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	err := g.AssembleAndRun("SETA 2a")
-	wantErr := lexer.ErrInvalidNumberLiteral
+	wantErr := gmachine.ErrUnknownIdentifier
 	if err == nil {
 		t.Fatal("expected an error to be returned for invalid argument to SETA")
 	}
@@ -260,7 +259,7 @@ func TestJUMPWithInvalidNumber(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	err := g.AssembleAndRun("JUMP 2a")
-	wantErr := lexer.ErrInvalidNumberLiteral
+	wantErr := gmachine.ErrUnknownIdentifier
 	if err == nil {
 		t.Fatal("expected an error to be returned for invalid argument to JUMP")
 	}

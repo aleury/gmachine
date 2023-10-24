@@ -1,7 +1,6 @@
 package lexer_test
 
 import (
-	"errors"
 	"gmachine/lexer"
 	"gmachine/token"
 	"testing"
@@ -12,41 +11,12 @@ func TestNextToken_ReturnsIllegalTokenForUnknownToken(t *testing.T) {
 	l := lexer.New("~")
 	wantLiteral := "~"
 	var wantType token.TokenType = token.ILLEGAL
-	got, err := l.NextToken()
-	if err != nil {
-		t.Fatal("didn't expect an error:", err)
-	}
+	got := l.NextToken()
 	if wantLiteral != got.Literal {
 		t.Errorf("token literal wrong - want=%q, got=%q", wantLiteral, got.Literal)
 	}
 	if wantType != got.Type {
 		t.Errorf("token type wrong - want=%q, got=%q", wantType, got.Type)
-	}
-}
-
-func TestNextToken_ReturnsErrorForInvalidCharacterLiteral(t *testing.T) {
-	t.Parallel()
-	l := lexer.New("'c")
-	wantErr := lexer.ErrInvalidCharacterLiteral
-	_, err := l.NextToken()
-	if err == nil {
-		t.Fatal("expected an error, but didn't receive one")
-	}
-	if !errors.Is(err, wantErr) {
-		t.Errorf("error wrong, wanted=%q, got=%q", wantErr, err)
-	}
-}
-
-func TestNextToken_ReturnsErrorForInvalidNumberLiteral(t *testing.T) {
-	t.Parallel()
-	l := lexer.New("2a")
-	wantErr := lexer.ErrInvalidNumberLiteral
-	_, err := l.NextToken()
-	if err == nil {
-		t.Fatal("expected an error, but didn't receive one")
-	}
-	if !errors.Is(err, wantErr) {
-		t.Errorf("error wrong, wanted=%q, got=%q", wantErr, err)
 	}
 }
 
@@ -105,10 +75,7 @@ HALT`
 
 	l := lexer.New(input)
 	for i, tt := range tests {
-		tok, err := l.NextToken()
-		if err != nil {
-			t.Fatalf("tests[%d] - didn't expect an error: %q", i, err)
-		}
+		tok := l.NextToken()
 		if tok.Type != tt.expectedType {
 			t.Fatalf("tests[%d] - tokentype wrong. wanted=%q, got=%q", i, tt.expectedType, tok.Type)
 		}

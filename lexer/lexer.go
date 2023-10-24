@@ -2,7 +2,6 @@ package lexer
 
 import (
 	"errors"
-	"fmt"
 	"gmachine/token"
 	"unicode"
 	"unicode/utf8"
@@ -26,7 +25,7 @@ func New(input string) *Lexer {
 	return l
 }
 
-func (l *Lexer) NextToken() (token.Token, error) {
+func (l *Lexer) NextToken() token.Token {
 	for {
 		l.skipWhitespace()
 		switch {
@@ -34,32 +33,23 @@ func (l *Lexer) NextToken() (token.Token, error) {
 			l.readUntil('\n')
 			continue
 		case l.ch == '\'':
-			char, err := l.readCharacter()
-			if err != nil {
-				return token.Token{}, err
-			}
-			return l.newToken(token.CHAR, char), nil
+			char := l.readCharacter()
+			return l.newToken(token.CHAR, char)
 		case l.ch == 0:
-			return l.newToken(token.EOF, ""), nil
+			return l.newToken(token.EOF, "")
 		case unicode.IsDigit(l.ch):
-			value, err := l.readInt()
-			if err != nil {
-				return token.Token{}, err
-			}
-			return l.newToken(token.INT, value), nil
+			value := l.readInt()
+			return l.newToken(token.INT, value)
 		case l.ch == '.':
-			if !unicode.IsLetter(l.peekChar()) {
-				return token.Token{}, fmt.Errorf("invalid label definition")
-			}
 			literal := l.readIdentifier()
-			return l.newToken(token.LABEL_DEFINITION, literal), nil
+			return l.newToken(token.LABEL_DEFINITION, literal)
 		case unicode.IsLetter(l.ch):
 			literal := l.readIdentifier()
 			kind := token.LookupIdent(literal)
-			return l.newToken(kind, literal), nil
+			return l.newToken(kind, literal)
 		default:
 			// Should we continue lexing if there is an illegal token?
-			return l.newToken(token.ILLEGAL, string(l.ch)), nil
+			return l.newToken(token.ILLEGAL, string(l.ch))
 		}
 	}
 }
@@ -80,34 +70,20 @@ func (l *Lexer) readUntil(r rune) string {
 	return l.input[start:l.position]
 }
 
-func (l *Lexer) peekChar() rune {
-	if l.readPosition >= len(l.input) {
-		return 0
-	}
-	nextChar, _ := utf8.DecodeRuneInString(l.input[l.readPosition:])
-	return nextChar
-}
-
-func (l *Lexer) readCharacter() (string, error) {
+func (l *Lexer) readCharacter() string {
 	start := l.position
 	l.readChar()
-	if l.peekChar() != '\'' {
-		return "", fmt.Errorf("%w: %s at line %d", ErrInvalidCharacterLiteral, l.input[start:l.readPosition], l.line)
-	}
 	l.readChar()
 	l.readChar()
-	return l.input[start:l.position], nil
+	return l.input[start:l.position]
 }
 
-func (l *Lexer) readInt() (string, error) {
+func (l *Lexer) readInt() string {
 	start := l.position
 	for unicode.IsDigit(l.ch) {
 		l.readChar()
 	}
-	if unicode.IsLetter(l.ch) {
-		return "", fmt.Errorf("%w: %s at line %d", ErrInvalidNumberLiteral, l.input[start:l.readPosition], l.line)
-	}
-	return l.input[start:l.position], nil
+	return l.input[start:l.position]
 }
 
 func (l *Lexer) readIdentifier() string {

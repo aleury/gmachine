@@ -14,6 +14,7 @@ const (
 
 var registers = map[string]TokenType{
 	"X": REGISTER,
+	"Y": REGISTER,
 }
 
 var opcodes = map[string]TokenType{

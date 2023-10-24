@@ -165,11 +165,7 @@ func Assemble(input string) ([]Word, error) {
 	labels := map[string]Word{}
 loop:
 	for {
-		tok, err := l.NextToken()
-		if err != nil {
-			return nil, err
-		}
-
+		tok := l.NextToken()
 		switch tok.Type {
 		case token.ILLEGAL:
 			return nil, errors.New("illegal token")
@@ -195,10 +191,7 @@ loop:
 
 			switch opcode {
 			case OpADDA, OpMOVA:
-				operandTok, err := l.NextToken()
-				if err != nil {
-					return nil, err
-				}
+				operandTok := l.NextToken()
 				// TODO: assemble register abstraction
 				reg, ok := registers[operandTok.Literal]
 				if !ok {
@@ -206,10 +199,7 @@ loop:
 				}
 				program = append(program, reg)
 			case OpSETA:
-				operandTok, err := l.NextToken()
-				if err != nil {
-					return nil, err
-				}
+				operandTok := l.NextToken()
 				switch operandTok.Type {
 				case token.INT:
 					num, err := strconv.ParseUint(operandTok.Literal, 10, 64)
@@ -224,10 +214,7 @@ loop:
 					return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, operandTok.Literal, operandTok.Line)
 				}
 			case OpJUMP:
-				operandTok, err := l.NextToken()
-				if err != nil {
-					return nil, err
-				}
+				operandTok := l.NextToken()
 				switch operandTok.Type {
 				case token.INT:
 					num, err := strconv.ParseUint(operandTok.Literal, 10, 64)
