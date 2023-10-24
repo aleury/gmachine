@@ -62,14 +62,6 @@ func (l *Lexer) newToken(kind token.TokenType, literal string) token.Token {
 	}
 }
 
-func (l *Lexer) peekChar() rune {
-	if l.readPosition >= len(l.input) {
-		return 0
-	}
-	ch, _ := utf8.DecodeRuneInString(l.input[l.readPosition:])
-	return ch
-}
-
 func (l *Lexer) readUntil(r rune) string {
 	start := l.position
 	for l.ch != r && l.ch != 0 {
