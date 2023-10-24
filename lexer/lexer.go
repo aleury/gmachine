@@ -38,7 +38,7 @@ func (l *Lexer) NextToken() token.Token {
 		case l.ch == 0:
 			return l.newToken(token.EOF, "")
 		case unicode.IsDigit(l.ch):
-			value := l.readInt()
+			value := l.readUntil('\n')
 			return l.newToken(token.INT, value)
 		case l.ch == '.':
 			literal := l.readIdentifier()
@@ -62,6 +62,14 @@ func (l *Lexer) newToken(kind token.TokenType, literal string) token.Token {
 	}
 }
 
+func (l *Lexer) peekChar() rune {
+	if l.readPosition >= len(l.input) {
+		return 0
+	}
+	ch, _ := utf8.DecodeRuneInString(l.input[l.readPosition:])
+	return ch
+}
+
 func (l *Lexer) readUntil(r rune) string {
 	start := l.position
 	for l.ch != r && l.ch != 0 {
@@ -75,14 +83,6 @@ func (l *Lexer) readCharacter() string {
 	l.readChar()
 	l.readChar()
 	l.readChar()
-	return l.input[start:l.position]
-}
-
-func (l *Lexer) readInt() string {
-	start := l.position
-	for unicode.IsDigit(l.ch) {
-		l.readChar()
-	}
 	return l.input[start:l.position]
 }
 

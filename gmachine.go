@@ -4,13 +4,14 @@ package gmachine
 import (
 	"errors"
 	"fmt"
+	"gmachine/ast"
 	"gmachine/lexer"
-	"gmachine/token"
+	"gmachine/parser"
 	"io"
 	"os"
-	"strconv"
 	"strings"
-	"unicode/utf8"
+
+	"golang.org/x/exp/slices"
 )
 
 // TODO(adam): Research serial output to add support outputing characters from the gmachine
@@ -159,93 +160,95 @@ type Ref struct {
 }
 
 func Assemble(input string) ([]Word, error) {
-	l := lexer.New(input)
 	program := []Word{}
 	refs := []Ref{}
 	labels := map[string]Word{}
-loop:
-	for {
-		tok := l.NextToken()
-		switch tok.Type {
-		case token.ILLEGAL:
-			return nil, errors.New("illegal token")
-		case token.EOF:
-			break loop
-		case token.LABEL_DEFINITION:
-			labels[strings.TrimPrefix(tok.Literal, ".")] = Word(len(program))
-		case token.IDENT:
-			ref := Ref{
-				Name:    tok.Literal,
-				Line:    tok.Line,
-				Address: Word(len(program)),
-			}
-			refs = append(refs, ref)
-			program = append(program, Word(0))
-		case token.OPCODE:
-			// consider function to assemble op code
-			opcode, ok := opcodes[tok.Literal]
-			if !ok {
-				return nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, tok.Literal, tok.Line)
-			}
-			program = append(program, opcode)
 
-			switch opcode {
-			case OpADDA, OpMOVA:
-				operandTok := l.NextToken()
-				// TODO: assemble register abstraction
-				reg, ok := registers[operandTok.Literal]
-				if !ok {
-					return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, operandTok.Literal, operandTok.Line)
-				}
-				program = append(program, reg)
-			case OpSETA:
-				operandTok := l.NextToken()
-				switch operandTok.Type {
-				case token.INT:
-					num, err := strconv.ParseUint(operandTok.Literal, 10, 64)
-					if err != nil {
-						return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, operandTok.Literal, operandTok.Line)
-					}
-					program = append(program, Word(num))
-				case token.CHAR:
-					char, _ := utf8.DecodeRuneInString(strings.Trim(operandTok.Literal, "'"))
-					program = append(program, Word(char))
-				default:
-					return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, operandTok.Literal, operandTok.Line)
-				}
-			case OpJUMP:
-				operandTok := l.NextToken()
-				switch operandTok.Type {
-				case token.INT:
-					num, err := strconv.ParseUint(operandTok.Literal, 10, 64)
-					if err != nil {
-						return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidNumber, operandTok.Literal, operandTok.Line)
-					}
-					program = append(program, Word(num))
-				case token.IDENT:
-					ref := Ref{
-						Name:    operandTok.Literal,
-						Line:    operandTok.Line,
-						Address: Word(len(program)),
-					}
-					refs = append(refs, ref)
-					program = append(program, Word(0))
-				default:
-					return nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, operandTok.Literal, operandTok.Line)
-				}
+	l := lexer.New(input)
+	p := parser.New(l)
+	astProgram := p.ParseProgram()
+	if astProgram == nil {
+		return program, errors.New("failed to parse program")
+	}
+	if len(p.Errors()) > 0 {
+		return program, p.Errors()[0]
+	}
+
+	// Assemble program
+	var err error
+	for _, stmt := range astProgram.Statements {
+		switch stmt := stmt.(type) {
+		case *ast.LabelDefinitionStatement:
+			labels[strings.TrimPrefix(stmt.TokenLiteral(), ".")] = Word(len(program))
+		case *ast.OpcodeStatement:
+			program, refs, err = assembleOpcodeStatement(stmt, program, refs)
+			if err != nil {
+				return nil, err
 			}
+		default:
+			return nil, fmt.Errorf("unknown statement type: %T", stmt)
 		}
 	}
 
 	// Resolve references
-	for _, ref := range refs {
-		addr, ok := labels[ref.Name]
+	for _, refs := range refs {
+		addr, ok := labels[refs.Name]
 		if !ok {
-			return nil, fmt.Errorf("%w: %s at line %d", ErrUnknownIdentifier, ref.Name, ref.Line)
+			return nil, fmt.Errorf("%w: %s at line %d", ErrUnknownIdentifier, refs.Name, refs.Line)
 		}
-		program[ref.Address] = addr
+		program[refs.Address] = addr
 	}
+
 	return program, nil
+}
+
+func assembleOpcodeStatement(stmt *ast.OpcodeStatement, program []Word, refs []Ref) ([]Word, []Ref, error) {
+	opcode, ok := opcodes[stmt.TokenLiteral()]
+	if !ok {
+		return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, stmt.TokenLiteral(), stmt.Token.Line)
+	}
+	program = append(program, opcode)
+
+	if stmt.Operand == nil {
+		return program, refs, nil
+	}
+
+	switch operand := stmt.Operand.(type) {
+	case *ast.RegisterLiteral:
+		if !slices.Contains([]Word{OpADDA, OpMOVA}, opcode) {
+			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
+		}
+		register, ok := registers[operand.TokenLiteral()]
+		if !ok {
+			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, operand.TokenLiteral(), operand.Token.Line)
+		}
+		program = append(program, register)
+	case *ast.Identifier:
+		if opcode != OpJUMP {
+			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
+		}
+		ref := Ref{
+			Name:    operand.TokenLiteral(),
+			Line:    operand.Token.Line,
+			Address: Word(len(program)),
+		}
+		refs = append(refs, ref)
+		program = append(program, Word(0))
+	case *ast.IntegerLiteral:
+		if !slices.Contains([]Word{OpSETA, OpJUMP}, opcode) {
+			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
+		}
+		program = append(program, Word(operand.Value))
+	case *ast.CharacterLiteral:
+		if opcode != OpSETA {
+			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
+		}
+		program = append(program, Word(operand.Value))
+	default:
+		return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
+	}
+
+	return program, refs, nil
 }
 
 func (g *Machine) AssembleAndRun(input string) error {

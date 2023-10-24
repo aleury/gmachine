@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"errors"
+	"fmt"
 	"gmachine/ast"
 	"gmachine/lexer"
 	"gmachine/token"
@@ -9,12 +11,15 @@ import (
 	"unicode/utf8"
 )
 
+var ErrInvalidOperand error = errors.New("invalid operand")
+
 type expressionParserFn func() ast.Expression
 
 type Parser struct {
 	l           *lexer.Lexer
 	curToken    token.Token
 	peekToken   token.Token
+	errors      []error
 	exprParsers map[token.TokenType]expressionParserFn
 }
 
@@ -34,11 +39,6 @@ func New(l *lexer.Lexer) *Parser {
 	return p
 }
 
-func (p *Parser) nextToken() {
-	p.curToken = p.peekToken
-	p.peekToken = p.l.NextToken()
-}
-
 func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
 	program.Statements = []ast.Statement{}
@@ -52,6 +52,15 @@ func (p *Parser) ParseProgram() *ast.Program {
 	}
 
 	return program
+}
+
+func (p *Parser) Errors() []error {
+	return p.errors
+}
+
+func (p *Parser) nextToken() {
+	p.curToken = p.peekToken
+	p.peekToken = p.l.NextToken()
 }
 
 func (p *Parser) parseStatement() ast.Statement {
@@ -91,9 +100,9 @@ func (p *Parser) parseIdentifier() ast.Expression {
 func (p *Parser) parseIntegerLiteral() ast.Expression {
 	intLiteral := &ast.IntegerLiteral{Token: p.curToken}
 
-	// TODO: Handle errors
 	value, err := strconv.ParseUint(intLiteral.TokenLiteral(), 0, 64)
 	if err != nil {
+		p.errors = append(p.errors, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, intLiteral.TokenLiteral(), intLiteral.Token.Line))
 		return nil
 	}
 
