@@ -27,6 +27,15 @@ func (p *Program) TokenLiteral() string {
 	return ""
 }
 
+type ConstantDefinitionStatement struct {
+	Token token.Token // the token.CONSTANT_DEFINITION token
+	Name  *Identifier
+	Value Expression
+}
+
+func (cds *ConstantDefinitionStatement) statementNode()       {}
+func (cds *ConstantDefinitionStatement) TokenLiteral() string { return cds.Token.Literal }
+
 type LabelDefinitionStatement struct {
 	Token token.Token // the token.LABEL_DEFINITION token
 }

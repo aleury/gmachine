@@ -2,6 +2,7 @@ package gmachine_test
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"gmachine/parser"
 	"io"
@@ -176,7 +177,7 @@ func TestSETA_ReturnsErrorForInvalidNumber(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	err := g.AssembleAndRun("SETA 2a")
-	wantErr := parser.ErrInvalidOperand
+	wantErr := parser.ErrInvalidIntegerLiteral
 	if err == nil {
 		t.Fatal("expected an error to be returned for invalid argument to SETA")
 	}
@@ -196,6 +197,24 @@ func TestSETA_AcceptsCharacterLiteral(t *testing.T) {
 	gotA := rune(g.A)
 	if wantA != gotA {
 		t.Errorf("want A %d, got %d", wantA, gotA)
+	}
+}
+
+func TestOUTA_SerializesValueAsBytesInBigEndianOrder(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	out := io.Writer(&buf)
+	g := gmachine.New(out)
+	err := g.AssembleAndRun("SETA 1\nOUTA")
+	if err != nil {
+		t.Fatalf("didn't expect an error: %v", err)
+	}
+
+	want := []byte{0, 0, 0, 0, 0, 0, 0, 1}
+	got := buf.Bytes()
+	if !cmp.Equal(want, got) {
+		t.Errorf(cmp.Diff(want, got))
 	}
 }
 
@@ -232,8 +251,17 @@ OUTA`)
 	if err != nil {
 		t.Fatal("didn't expect an error", err)
 	}
-	want := "hello world!"
-	got := buf.String()
+
+	output := []uint64{}
+	for _, r := range "hello world!" {
+		output = append(output, uint64(r))
+	}
+
+	wantBuf := bytes.Buffer{}
+	binary.Write(&wantBuf, binary.BigEndian, output)
+
+	want := wantBuf.Bytes()
+	got := buf.Bytes()
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
 	}
@@ -261,7 +289,7 @@ func TestJUMPWithInvalidNumber(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	err := g.AssembleAndRun("JUMP 2a")
-	wantErr := parser.ErrInvalidOperand
+	wantErr := parser.ErrInvalidIntegerLiteral
 	if err == nil {
 		t.Fatal("expected an error to be returned for invalid argument to JUMP")
 	}
@@ -483,6 +511,43 @@ HALT
 
 .start
 JUMP testB
+`)
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestSettingAConstant(t *testing.T) {
+	t.Parallel()
+
+	input := `
+CONS c 1
+SETA c
+`
+	g := gmachine.New(nil)
+	g.AssembleAndRun(input)
+	wantA := gmachine.Word(1)
+	gotA := g.A
+	if wantA != gotA {
+		t.Errorf("wanted %v, got %v", wantA, gotA)
+	}
+}
+
+func TestConstantReferencesAreReplacedWithValues(t *testing.T) {
+	t.Parallel()
+
+	want := []gmachine.Word{
+		gmachine.OpSETA,
+		gmachine.Word(42),
+		gmachine.OpOUTA,
+	}
+	got, err := gmachine.Assemble(`
+CONS c 42
+SETA c
+OUTA
 `)
 	if err != nil {
 		t.Fatal("didn't expect an error:", err)

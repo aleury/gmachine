@@ -1,6 +1,7 @@
 package parser_test
 
 import (
+	"errors"
 	"gmachine/ast"
 	"gmachine/lexer"
 	"gmachine/parser"
@@ -91,6 +92,27 @@ POPA`
 		if !ok {
 			t.Fatalf("stmt not *ast.OpcodeStatement. got=%T", stmt)
 		}
+	}
+}
+
+func TestParseProgram_ReturnsErrorForInvalidOperand(t *testing.T) {
+	t.Parallel()
+
+	input := "SETA 2a"
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+	if program == nil {
+		t.Fatal("ParseProgram() returned nil")
+	}
+	if len(p.Errors()) != 1 {
+		t.Fatalf("parser returned %d errors. got=%d", len(p.Errors()), 1)
+	}
+
+	wantErr := parser.ErrInvalidIntegerLiteral
+	err := p.Errors()[0]
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("parser returned wrong error. got=%q, want=%q", err, wantErr)
 	}
 }
 

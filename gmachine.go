@@ -2,6 +2,7 @@
 package gmachine
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"gmachine/ast"
@@ -71,6 +72,11 @@ var opcodes = map[string]Word{
 
 type Word uint64
 
+// Floating Point Support
+// Idea 1: Fixed point (32 bits for integer, 32 bits for fraction)
+// Idea 2: Movable Point, select number of bits for integer part and fraction part
+// Idea 3: Floating point (IEEE 754) (32 bits for mantissa, 8 bits for exponent, 1 bit for sign)
+
 type Machine struct {
 	P         Word
 	S         Word
@@ -115,7 +121,7 @@ func (g *Machine) Run() {
 		case OpNOOP:
 			continue
 		case OpOUTA:
-			g.Out.Write([]byte{byte(g.A)})
+			binary.Write(g.Out, binary.BigEndian, g.A)
 		case OpINCA:
 			g.A++
 		case OpDECA:
@@ -157,12 +163,43 @@ type Ref struct {
 	Name    string
 	Line    int
 	Address Word
+	Value   Word
+}
+
+type symbolTable struct {
+	labels map[string]Word
+	consts map[string]Word
+}
+
+func newSymbolTable() *symbolTable {
+	return &symbolTable{
+		labels: make(map[string]Word),
+		consts: make(map[string]Word),
+	}
+}
+
+func (t *symbolTable) defineLabel(name string, address Word) {
+	t.labels[name] = address
+}
+
+func (t *symbolTable) defineConst(name string, value Word) {
+	t.consts[name] = value
+}
+
+func (t *symbolTable) lookup(name string) (Word, bool) {
+	if value, ok := t.labels[name]; ok {
+		return value, ok
+	}
+	if value, ok := t.consts[name]; ok {
+		return value, ok
+	}
+	return Word(0), false
 }
 
 func Assemble(input string) ([]Word, error) {
 	program := []Word{}
 	refs := []Ref{}
-	labels := map[string]Word{}
+	symbols := newSymbolTable()
 
 	l := lexer.New(input)
 	p := parser.New(l)
@@ -178,8 +215,12 @@ func Assemble(input string) ([]Word, error) {
 	var err error
 	for _, stmt := range astProgram.Statements {
 		switch stmt := stmt.(type) {
+		case *ast.ConstantDefinitionStatement:
+			value := stmt.Value.(*ast.IntegerLiteral).Value
+			symbols.defineConst(stmt.Name.Value, Word(value))
 		case *ast.LabelDefinitionStatement:
-			labels[strings.TrimPrefix(stmt.TokenLiteral(), ".")] = Word(len(program))
+			name := strings.TrimPrefix(stmt.TokenLiteral(), ".")
+			symbols.defineLabel(name, Word(len(program)))
 		case *ast.OpcodeStatement:
 			program, refs, err = assembleOpcodeStatement(stmt, program, refs)
 			if err != nil {
@@ -190,13 +231,13 @@ func Assemble(input string) ([]Word, error) {
 		}
 	}
 
-	// Resolve references
+	// Resolve references to labels and consts
 	for _, refs := range refs {
-		addr, ok := labels[refs.Name]
+		value, ok := symbols.lookup(refs.Name)
 		if !ok {
 			return nil, fmt.Errorf("%w: %s at line %d", ErrUnknownIdentifier, refs.Name, refs.Line)
 		}
-		program[refs.Address] = addr
+		program[refs.Address] = value
 	}
 
 	return program, nil
@@ -224,7 +265,7 @@ func assembleOpcodeStatement(stmt *ast.OpcodeStatement, program []Word, refs []R
 		}
 		program = append(program, register)
 	case *ast.Identifier:
-		if opcode != OpJUMP {
+		if !slices.Contains([]Word{OpSETA, OpJUMP}, opcode) {
 			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
 		}
 		ref := Ref{
