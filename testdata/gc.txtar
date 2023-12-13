@@ -1,0 +1,14 @@
+exec gc test.g
+exists test
+
+exec hexdump test
+cmp stdout want
+
+-- test.g --
+SETA 42
+OUTA
+
+-- want --
+0000000 0000 0000 0000 0800 0000 0000 0000 2a00
+0000010 0000 0000 0000 0300                    
+0000018

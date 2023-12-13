@@ -2,6 +2,7 @@
 package gmachine
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -196,12 +197,15 @@ func (t *symbolTable) lookup(name string) (Word, bool) {
 	return Word(0), false
 }
 
-func Assemble(input string) ([]Word, error) {
+func Assemble(reader io.Reader) ([]Word, error) {
 	program := []Word{}
 	refs := []Ref{}
 	symbols := newSymbolTable()
 
-	l := lexer.New(input)
+	l, err := lexer.New(reader)
+	if err != nil {
+		return nil, err
+	}
 	p := parser.New(l)
 	astProgram := p.ParseProgram()
 	if astProgram == nil {
@@ -212,7 +216,6 @@ func Assemble(input string) ([]Word, error) {
 	}
 
 	// Assemble program
-	var err error
 	for _, stmt := range astProgram.Statements {
 		switch stmt := stmt.(type) {
 		case *ast.ConstantDefinitionStatement:
@@ -292,8 +295,8 @@ func assembleOpcodeStatement(stmt *ast.OpcodeStatement, program []Word, refs []R
 	return program, refs, nil
 }
 
-func (g *Machine) AssembleAndRun(input string) error {
-	program, err := Assemble(input)
+func (g *Machine) AssembleAndRun(r io.Reader) error {
+	program, err := Assemble(r)
 	if err != nil {
 		return err
 	}
@@ -302,16 +305,88 @@ func (g *Machine) AssembleAndRun(input string) error {
 }
 
 func RunFile(path string) int {
-	content, err := os.ReadFile(path)
+	content, err := os.Open(path)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
 	g := New(os.Stdout)
-	err = g.AssembleAndRun(string(content))
+	err = g.AssembleAndRun(content)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
+	return 0
+}
+
+func Compile(in io.Reader, out io.Writer) error {
+	program, err := Assemble(in)
+	if err != nil {
+		return err
+	}
+
+	err = binary.Write(out, binary.BigEndian, program)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func MainCompile() int {
+	fileName := os.Args[1]
+	outputFile := strings.TrimSuffix(fileName, ".g")
+
+	in, err := os.Open(fileName)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	defer in.Close()
+
+	out, err := os.Create(outputFile)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	defer out.Close()
+
+	err = Compile(in, out)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	return 0
+}
+
+func MainRun() int {
+	f, err := os.Open(os.Args[1])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	defer f.Close()
+
+	input, err := io.ReadAll(f)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	program := make([]Word, len(input)/8)
+	err = binary.Read(bytes.NewReader(input), binary.BigEndian, &program)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	g := New(os.Stdout)
+	g.RunProgram(program)
+	if g.E != 0 {
+		fmt.Fprintf(os.Stderr, "exception number: %d\n", g.E)
+		return 1
+	}
+
 	return 0
 }

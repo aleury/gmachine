@@ -6,14 +6,30 @@ import (
 	"errors"
 	"gmachine/parser"
 	"io"
+	"os"
+	"strings"
 	"testing"
 
 	"gmachine"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/rogpeppe/go-internal/testscript"
 )
 
 // TODO(adam): Add CLI tests using testscript
+
+func TestMain(m *testing.M) {
+	os.Exit(testscript.RunMain(m, map[string]func() int{
+		"gc": gmachine.MainCompile,
+		"gr": gmachine.MainRun,
+	}))
+}
+
+func Test(t *testing.T) {
+	testscript.Run(t, testscript.Params{
+		Dir: "testdata",
+	})
+}
 
 func TestNew(t *testing.T) {
 	t.Parallel()
@@ -50,7 +66,7 @@ func TestHALT(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	var wantP gmachine.Word = 1
-	err := g.AssembleAndRun("HALT")
+	err := assembleAndRunFromString(g, "HALT")
 	if err != nil {
 		t.Fatal("didn't expect an error", err)
 	}
@@ -63,7 +79,7 @@ func TestNOOP(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	var wantP gmachine.Word = 2
-	err := g.AssembleAndRun("NOOP")
+	err := assembleAndRunFromString(g, "NOOP")
 	if err != nil {
 		t.Fatal("didn't expect an error", err)
 	}
@@ -75,7 +91,7 @@ func TestNOOP(t *testing.T) {
 func TestINCA(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	err := g.AssembleAndRun("INCA")
+	err := assembleAndRunFromString(g, "INCA")
 	if err != nil {
 		t.Fatal("didn't expect an error", err)
 	}
@@ -101,7 +117,7 @@ func TestOutOfMemoryException(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	g.P = gmachine.MemSize - gmachine.StackSize - 1
-	err := g.AssembleAndRun("NOOP")
+	err := assembleAndRunFromString(g, "NOOP")
 	if err != nil {
 		t.Fatal("didn't expect an error", err)
 	}
@@ -116,7 +132,7 @@ func TestDECA(t *testing.T) {
 	g := gmachine.New(nil)
 	g.A = 1
 	var wantA gmachine.Word = 0
-	err := g.AssembleAndRun("DECA")
+	err := assembleAndRunFromString(g, "DECA")
 	if err != nil {
 		t.Fatal("didn't expect an error", err)
 	}
@@ -129,7 +145,7 @@ func TestSETA(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	var wantA gmachine.Word = 5
-	err := g.AssembleAndRun("SETA 5")
+	err := assembleAndRunFromString(g, "SETA 5")
 	if err != nil {
 		t.Fatal("didn't expect an error", err)
 	}
@@ -141,7 +157,7 @@ func TestSETA(t *testing.T) {
 func TestAssemble(t *testing.T) {
 	t.Parallel()
 	want := []gmachine.Word{gmachine.OpINCA, gmachine.OpHALT}
-	program, err := gmachine.Assemble("INCA\nHALT")
+	program, err := assembleFromString("INCA\nHALT")
 	if err != nil {
 		t.Fatal("didn't expect an error", err)
 	}
@@ -153,7 +169,7 @@ func TestAssemble(t *testing.T) {
 func TestAssemble_ReturnsErrorForUnknownInstruction(t *testing.T) {
 	t.Skip("TODO: Determine how to handle invalid statements")
 	t.Parallel()
-	_, err := gmachine.Assemble("ILLEGAL")
+	_, err := assembleFromString("ILLEGAL")
 	wantErr := gmachine.ErrUnknownIdentifier
 	if !errors.Is(err, wantErr) {
 		t.Errorf("wanted error %v, got %v", wantErr, err)
@@ -163,7 +179,7 @@ func TestAssemble_ReturnsErrorForUnknownInstruction(t *testing.T) {
 func TestAssembleAndRun(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	err := g.AssembleAndRun("INCA\nHALT")
+	err := assembleAndRunFromString(g, "INCA\nHALT")
 	if err != nil {
 		t.Fatal("didn't expect an error", err)
 	}
@@ -176,7 +192,7 @@ func TestAssembleAndRun(t *testing.T) {
 func TestSETA_ReturnsErrorForInvalidNumber(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	err := g.AssembleAndRun("SETA 2a")
+	err := assembleAndRunFromString(g, "SETA 2a")
 	wantErr := parser.ErrInvalidIntegerLiteral
 	if err == nil {
 		t.Fatal("expected an error to be returned for invalid argument to SETA")
@@ -189,7 +205,7 @@ func TestSETA_ReturnsErrorForInvalidNumber(t *testing.T) {
 func TestSETA_AcceptsCharacterLiteral(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	err := g.AssembleAndRun("SETA 'h'")
+	err := assembleAndRunFromString(g, "SETA 'h'")
 	if err != nil {
 		t.Fatal("didn't expect an error:", err)
 	}
@@ -206,7 +222,7 @@ func TestOUTA_SerializesValueAsBytesInBigEndianOrder(t *testing.T) {
 	var buf bytes.Buffer
 	out := io.Writer(&buf)
 	g := gmachine.New(out)
-	err := g.AssembleAndRun("SETA 1\nOUTA")
+	err := assembleAndRunFromString(g, "SETA 1\nOUTA")
 	if err != nil {
 		t.Fatalf("didn't expect an error: %v", err)
 	}
@@ -223,7 +239,7 @@ func TestOUTA(t *testing.T) {
 	var buf bytes.Buffer
 	out := io.Writer(&buf)
 	g := gmachine.New(out)
-	err := g.AssembleAndRun(`
+	err := assembleAndRunFromString(g, `
 SETA 'h'
 OUTA
 SETA 'e'
@@ -271,7 +287,7 @@ func TestJUMP(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	var wantA gmachine.Word = 42
-	err := g.AssembleAndRun(`
+	err := assembleAndRunFromString(g, `
 JUMP 3
 HALT
 SETA 41
@@ -288,7 +304,7 @@ INCA
 func TestJUMPWithInvalidNumber(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	err := g.AssembleAndRun("JUMP 2a")
+	err := assembleAndRunFromString(g, "JUMP 2a")
 	wantErr := parser.ErrInvalidIntegerLiteral
 	if err == nil {
 		t.Fatal("expected an error to be returned for invalid argument to JUMP")
@@ -301,7 +317,7 @@ func TestJUMPWithInvalidNumber(t *testing.T) {
 func TestAssemble_SkipsComments(t *testing.T) {
 	t.Parallel()
 	want := []gmachine.Word{}
-	got, err := gmachine.Assemble("; this is a comment")
+	got, err := assembleFromString("; this is a comment")
 	if err != nil {
 		t.Fatal("didn't expect an error:", err)
 	}
@@ -316,7 +332,7 @@ func TestPSHA(t *testing.T) {
 	var wantA gmachine.Word = 42
 	var wantS gmachine.Word = 1
 	var want gmachine.Word = 42
-	err := g.AssembleAndRun("SETA 42\nPSHA")
+	err := assembleAndRunFromString(g, "SETA 42\nPSHA")
 	if err != nil {
 		t.Fatal("didn't expect an error:", err)
 	}
@@ -336,7 +352,7 @@ func TestPOPA(t *testing.T) {
 	g := gmachine.New(nil)
 	var wantA gmachine.Word = 42
 	var wantS gmachine.Word = 0
-	err := g.AssembleAndRun(`
+	err := assembleAndRunFromString(g, `
 SETA 42
 PSHA
 SETA 3
@@ -356,7 +372,7 @@ POPA
 func TestMOVA(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	err := g.AssembleAndRun("SETA 42\nMOVA X\n")
+	err := assembleAndRunFromString(g, "SETA 42\nMOVA X\n")
 	if err != nil {
 		t.Fatal("didn't expect an error:", err)
 	}
@@ -369,7 +385,7 @@ func TestMOVA(t *testing.T) {
 func TestMOVA_FailsForInvalidRegister(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	err := g.AssembleAndRun("MOVA Z")
+	err := assembleAndRunFromString(g, "MOVA Z")
 	wantErr := gmachine.ErrInvalidOperand
 	if err == nil {
 		t.Fatal("expected an error to be returned for invalid argument to MOVA")
@@ -383,7 +399,7 @@ func TestADDA(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	var wantA gmachine.Word = 10
-	err := g.AssembleAndRun(`
+	err := assembleAndRunFromString(g, `
 SETA 6
 MOVA X
 SETA 4
@@ -400,7 +416,7 @@ ADDA X
 func TestADDA_FailsForInvalidRegister(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	err := g.AssembleAndRun("ADDA Z")
+	err := assembleAndRunFromString(g, "ADDA Z")
 	wantErr := gmachine.ErrInvalidOperand
 	if err == nil {
 		t.Fatal("expected an error to be returned for invalid argument to ADDA")
@@ -413,7 +429,7 @@ func TestADDA_FailsForInvalidRegister(t *testing.T) {
 func TestAddTwoNumbers(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	err := g.AssembleAndRun(`
+	err := assembleAndRunFromString(g, `
 ; x = 4, y = 6
 SETA 4
 PSHA
@@ -437,7 +453,7 @@ ADDA X
 func TestSubroutineLabel(t *testing.T) {
 	t.Parallel()
 	want := []gmachine.Word{gmachine.OpSETA, gmachine.Word(42), gmachine.OpOUTA}
-	got, err := gmachine.Assemble(`
+	got, err := assembleFromString(`
 .test
 SETA 42
 OUTA
@@ -453,7 +469,7 @@ OUTA
 func TestAssemble_ReturnsErrorWhenGivenAnUndefinedIdentifer(t *testing.T) {
 	t.Parallel()
 	wantErr := gmachine.ErrUnknownIdentifier
-	_, err := gmachine.Assemble("JUMP foo")
+	_, err := assembleFromString("JUMP foo")
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -465,7 +481,7 @@ func TestAssemble_ReturnsErrorWhenGivenAnUndefinedIdentifer(t *testing.T) {
 func TestAssemble_ReturnsErrorWhenJumpIsPassedInvalidArgument(t *testing.T) {
 	t.Parallel()
 	wantErr := gmachine.ErrInvalidOperand
-	_, err := gmachine.Assemble("JUMP 'a'")
+	_, err := assembleFromString("JUMP 'a'")
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -495,7 +511,7 @@ func TestSubRoutineLabelsAreReplacedWithMemoryAddress(t *testing.T) {
 		gmachine.OpJUMP,
 		gmachine.Word(6),
 	}
-	got, err := gmachine.Assemble(`
+	got, err := assembleFromString(`
 JUMP start
 
 .testA
@@ -528,7 +544,7 @@ CONS c 1
 SETA c
 `
 	g := gmachine.New(nil)
-	g.AssembleAndRun(input)
+	assembleAndRunFromString(g, input)
 	wantA := gmachine.Word(1)
 	gotA := g.A
 	if wantA != gotA {
@@ -544,7 +560,7 @@ func TestConstantReferencesAreReplacedWithValues(t *testing.T) {
 		gmachine.Word(42),
 		gmachine.OpOUTA,
 	}
-	got, err := gmachine.Assemble(`
+	got, err := assembleFromString(`
 CONS c 42
 SETA c
 OUTA
@@ -555,4 +571,65 @@ OUTA
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
 	}
+}
+
+func TestCompile(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	out := io.Writer(&buf)
+
+	input := `
+	SETA 42
+	OUTA
+`
+	r := strings.NewReader(input)
+	err := gmachine.Compile(r, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := []byte{
+		0, 0, 0, 0, 0, 0, 0, byte(gmachine.OpSETA),
+		0, 0, 0, 0, 0, 0, 0, byte(42),
+		0, 0, 0, 0, 0, 0, 0, byte(gmachine.OpOUTA),
+	}
+	got := buf.Bytes()
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestCompile_FailsForInvalidInput(t *testing.T) {
+	t.Parallel()
+
+	input := strings.NewReader(`SETA 4a`)
+	err := gmachine.Compile(input, io.Discard)
+	if err == nil {
+		t.Error("expected an error")
+	}
+}
+
+type errorWriter struct{}
+
+func (w *errorWriter) Write(data []byte) (int, error) {
+	return 0, errors.New("failed to write data")
+}
+
+func TestCompile_FailsForWriteError(t *testing.T) {
+	t.Parallel()
+
+	input := strings.NewReader(`SETA 42`)
+	err := gmachine.Compile(input, &errorWriter{})
+	if err == nil {
+		t.Error("expected an error")
+	}
+}
+
+func assembleFromString(input string) ([]gmachine.Word, error) {
+	return gmachine.Assemble(strings.NewReader(input))
+}
+
+func assembleAndRunFromString(g *gmachine.Machine, input string) error {
+	return g.AssembleAndRun(strings.NewReader(input))
 }

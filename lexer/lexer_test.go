@@ -3,12 +3,13 @@ package lexer_test
 import (
 	"gmachine/lexer"
 	"gmachine/token"
+	"strings"
 	"testing"
 )
 
 func TestNextToken_ReturnsIllegalTokenForUnknownToken(t *testing.T) {
 	t.Parallel()
-	l := lexer.New("~")
+	l := newLexerFromString("~")
 	wantLiteral := "~"
 	var wantType token.TokenType = token.ILLEGAL
 	got := l.NextToken()
@@ -73,7 +74,7 @@ HALT`
 		{token.EOF, "", 23},
 	}
 
-	l := lexer.New(input)
+	l := newLexerFromString(input)
 	for i, tt := range tests {
 		tok := l.NextToken()
 		if tok.Type != tt.expectedType {
@@ -86,4 +87,12 @@ HALT`
 			t.Fatalf("tests[%d] - line number wrong. wanted=%d, got=%d", i, tt.expectedLine, tok.Line)
 		}
 	}
+}
+
+func newLexerFromString(input string) *lexer.Lexer {
+	l, err := lexer.New(strings.NewReader(input))
+	if err != nil {
+		panic(err)
+	}
+	return l
 }

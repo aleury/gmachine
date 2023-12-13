@@ -23,3 +23,4 @@ SETA 'd'
 OUTA
 SETA '!'
 OUTA
+HALT

@@ -3,6 +3,7 @@ package lexer
 import (
 	"errors"
 	"gmachine/token"
+	"io"
 	"unicode"
 	"unicode/utf8"
 )
@@ -19,10 +20,14 @@ type Lexer struct {
 	cw           int  // width of current char in bytes
 }
 
-func New(input string) *Lexer {
-	l := &Lexer{input: input, line: 1}
+func New(reader io.Reader) (*Lexer, error) {
+	input, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	l := &Lexer{input: string(input), line: 1}
 	l.readChar()
-	return l
+	return l, nil
 }
 
 func (l *Lexer) NextToken() token.Token {

@@ -5,6 +5,7 @@ import (
 	"gmachine/ast"
 	"gmachine/lexer"
 	"gmachine/parser"
+	"strings"
 	"testing"
 )
 
@@ -12,7 +13,7 @@ func TestParseProgram_ParsesLabelDefinitions(t *testing.T) {
 	t.Parallel()
 
 	input := `.test`
-	l := lexer.New(input)
+	l := newLexerFromString(input)
 	p := parser.New(l)
 	program := p.ParseProgram()
 	if program == nil {
@@ -57,7 +58,7 @@ DECA
 PSHA
 POPA`
 
-	l := lexer.New(input)
+	l := newLexerFromString(input)
 	p := parser.New(l)
 	program := p.ParseProgram()
 	if program == nil {
@@ -99,7 +100,7 @@ func TestParseProgram_ReturnsErrorForInvalidOperand(t *testing.T) {
 	t.Parallel()
 
 	input := "SETA 2a"
-	l := lexer.New(input)
+	l := newLexerFromString(input)
 	p := parser.New(l)
 	program := p.ParseProgram()
 	if program == nil {
@@ -123,7 +124,7 @@ func TestParseProgram_ParsesOpcodesWithAnIntegerLiteralOperand(t *testing.T) {
 SETA 42
 JUMP 42
 `
-	l := lexer.New(input)
+	l := newLexerFromString(input)
 	p := parser.New(l)
 	program := p.ParseProgram()
 	if program == nil {
@@ -175,7 +176,7 @@ func TestParseProgram_ParsesOpcodeWithAnIdentifierOperand(t *testing.T) {
 	t.Parallel()
 
 	input := "JUMP start"
-	l := lexer.New(input)
+	l := newLexerFromString(input)
 	p := parser.New(l)
 	program := p.ParseProgram()
 	if program == nil {
@@ -233,7 +234,7 @@ SETA Y
 ADDA X
 ADDA Y	
 `
-	l := lexer.New(input)
+	l := newLexerFromString(input)
 	p := parser.New(l)
 	program := p.ParseProgram()
 	if program == nil {
@@ -290,7 +291,7 @@ func TestParseProgram_ParsesOpcodeWithACharacterLiteralOperand(t *testing.T) {
 	t.Parallel()
 
 	input := "SETA 'a'"
-	l := lexer.New(input)
+	l := newLexerFromString(input)
 	p := parser.New(l)
 	program := p.ParseProgram()
 	if program == nil {
@@ -339,4 +340,12 @@ func TestParseProgram_ParsesOpcodeWithACharacterLiteralOperand(t *testing.T) {
 			t.Fatalf("operand.Value not %d. got=%d", tt.expectedValue, operandExpr.Value)
 		}
 	}
+}
+
+func newLexerFromString(input string) *lexer.Lexer {
+	l, err := lexer.New(strings.NewReader(input))
+	if err != nil {
+		panic(err)
+	}
+	return l
 }

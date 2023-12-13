@@ -1,0 +1,11 @@
+exec gc test.g
+
+exec hexdump test
+
+exec gr test
+stdout 'a'
+
+-- test.g --
+SETA 'a'
+OUTA
+HALT
