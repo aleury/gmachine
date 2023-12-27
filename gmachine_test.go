@@ -16,8 +16,6 @@ import (
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
-// TODO(adam): Add CLI tests using testscript
-
 func TestMain(m *testing.M) {
 	os.Exit(testscript.RunMain(m, map[string]func() int{
 		"gc": gmachine.MainCompile,
@@ -49,6 +47,10 @@ func TestNew(t *testing.T) {
 	var wantX gmachine.Word = 0
 	if wantX != g.X {
 		t.Errorf("want initial X value %d, got %d", wantX, g.X)
+	}
+	var wantY gmachine.Word = 0
+	if wantY != g.Y {
+		t.Errorf("want initial Y value %d, got %d", wantY, g.Y)
 	}
 	var wantMemValue gmachine.Word = 0
 	gotMemValue := g.Memory[gmachine.MemSize-1]
@@ -369,16 +371,29 @@ POPA
 	}
 }
 
-func TestMOVA(t *testing.T) {
+func TestMOVAX(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
+	var wantX gmachine.Word = 42
 	err := assembleAndRunFromString(g, "SETA 42\nMOVA X\n")
 	if err != nil {
 		t.Fatal("didn't expect an error:", err)
 	}
-	var wantX gmachine.Word = 42
 	if wantX != g.X {
-		t.Errorf("want X %d, got %d", wantX, g.X)
+		t.Errorf("want %d, got %d", wantX, g.X)
+	}
+}
+
+func TestMOVAY(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	var wantY gmachine.Word = 42
+	err := assembleAndRunFromString(g, "SETA 42\nMOVA Y\n")
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	if wantY != g.Y {
+		t.Errorf("want %d, got %d", wantY, g.Y)
 	}
 }
 
@@ -395,7 +410,7 @@ func TestMOVA_FailsForInvalidRegister(t *testing.T) {
 	}
 }
 
-func TestADDA(t *testing.T) {
+func TestADDAX(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	var wantA gmachine.Word = 10
@@ -404,6 +419,24 @@ SETA 6
 MOVA X
 SETA 4
 ADDA X
+`)
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	if wantA != g.A {
+		t.Errorf("want A %d, got %d", wantA, g.A)
+	}
+}
+
+func TestADDAY(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	var wantA gmachine.Word = 10
+	err := assembleAndRunFromString(g, `
+SETA 6
+MOVA Y
+SETA 4
+ADDA Y
 `)
 	if err != nil {
 		t.Fatal("didn't expect an error:", err)

@@ -16,8 +16,6 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-// TODO(adam): Research serial output to add support outputing characters from the gmachine
-
 const MemSize = 1024
 const StackSize = 256
 
@@ -38,6 +36,7 @@ const (
 const (
 	RegA Word = iota
 	RegX
+	RegY
 )
 
 const (
@@ -55,6 +54,7 @@ var ErrUndefinedInstruction error = errors.New("undefined instruction")
 var registers = map[string]Word{
 	"A": RegA,
 	"X": RegX,
+	"Y": RegY,
 }
 
 var opcodes = map[string]Word{
@@ -83,6 +83,7 @@ type Machine struct {
 	S         Word
 	A         Word
 	X         Word
+	Y         Word
 	E         Word
 	Out       io.Writer
 	MemOffset Word
@@ -95,6 +96,7 @@ func New(out io.Writer) *Machine {
 		S:         Word(0),
 		A:         Word(0),
 		X:         Word(0),
+		Y:         Word(0),
 		E:         Word(0),
 		Out:       out,
 		MemOffset: StackSize,
@@ -131,11 +133,15 @@ func (g *Machine) Run() {
 			switch g.Next() {
 			case RegX:
 				g.A += g.X
+			case RegY:
+				g.A += g.Y
 			}
 		case OpMOVA:
 			switch g.Next() {
 			case RegX:
 				g.X = g.A
+			case RegY:
+				g.Y = g.A
 			}
 		case OpSETA:
 			g.A = g.Next()
