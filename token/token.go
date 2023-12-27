@@ -6,7 +6,7 @@ const (
 
 	OPCODE              = "OPCODE"
 	REGISTER            = "REGISTER"
-	LABEL_DEFINITION    = "LABEL_DEFINITION" // TODO: Add to lexer
+	LABEL_DEFINITION    = "LABEL_DEFINITION"
 	CONSTANT_DEFINITION = "CONSTANT_DEFINITION"
 	IDENT               = "IDENT"
 	INT                 = "INT"
