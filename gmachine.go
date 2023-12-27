@@ -73,11 +73,6 @@ var opcodes = map[string]Word{
 
 type Word uint64
 
-// Floating Point Support
-// Idea 1: Fixed point (32 bits for integer, 32 bits for fraction)
-// Idea 2: Movable Point, select number of bits for integer part and fraction part
-// Idea 3: Floating point (IEEE 754) (32 bits for mantissa, 8 bits for exponent, 1 bit for sign)
-
 type Machine struct {
 	P         Word
 	S         Word
