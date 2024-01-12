@@ -1,17 +1,15 @@
 ; Tasks:
-; 1. Implement MULA opcode
-; 2. Implement SETX opcode
-; 3. Implement DECX opcode (and DECA, DECY)
-; 4. Implement CMPX opcode and C status register to store result of CMPX.
-; 5. Implement BINZ opcode
-; 6. Implement CALL and RTRN opcodes
+; 1. Implement MULA
+; 2. Implement SETX
+; 3. Implement DECX (and DECA, DECY)
+; 4. Implement JXNZ
+; 5. Implement CALL and RTRN
 
 .factorial
 MULA X
 DECX
 CMPX 0
-BINZ factorial ; branch to .factorial if result of CMPX is not zero (0)
-CLRC ; clear the compare result
+JXNZ factorial ; jump to .factorial if register X is not zero
 RTRN ; exit subroutine
 
 .start
