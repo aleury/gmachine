@@ -8,7 +8,6 @@
 .factorial
 MULA X
 DECX
-CMPX 0
 JXNZ factorial ; jump to .factorial if register X is not zero
 RTRN ; exit subroutine
 
