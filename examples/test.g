@@ -27,6 +27,6 @@ OUTA
 JUMP 41
 
 .start
-JUMP .hello
-JUMP .world
+JUMP hello
+JUMP world
 HALT

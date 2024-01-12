@@ -483,6 +483,39 @@ ADDA X
 	}
 }
 
+func TestMULAX(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := assembleAndRunFromString(g, `
+SETA 5
+MOVA X
+SETA 2
+MULA X`)
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	var wantA gmachine.Word = 10
+	if wantA != g.A {
+		t.Errorf("want A %d, got %d", wantA, g.A)
+	}
+}
+func TestMULAY(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := assembleAndRunFromString(g, `
+SETA 5
+MOVA Y
+SETA 2
+MULA Y`)
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	var wantA gmachine.Word = 10
+	if wantA != g.A {
+		t.Errorf("want A %d, got %d", wantA, g.A)
+	}
+}
+
 func TestSubroutineLabel(t *testing.T) {
 	t.Parallel()
 	want := []gmachine.Word{gmachine.OpSETA, gmachine.Word(42), gmachine.OpOUTA}

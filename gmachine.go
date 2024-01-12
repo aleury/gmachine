@@ -26,6 +26,7 @@ const (
 	OpINCA
 	OpDECA
 	OpADDA
+	OpMULA
 	OpMOVA
 	OpSETA
 	OpPSHA
@@ -64,6 +65,7 @@ var opcodes = map[string]Word{
 	"INCA": OpINCA,
 	"DECA": OpDECA,
 	"ADDA": OpADDA,
+	"MULA": OpMULA,
 	"MOVA": OpMOVA,
 	"SETA": OpSETA,
 	"PSHA": OpPSHA,
@@ -130,6 +132,13 @@ func (g *Machine) Run() {
 				g.A += g.X
 			case RegY:
 				g.A += g.Y
+			}
+		case OpMULA:
+			switch g.Next() {
+			case RegX:
+				g.A *= g.X
+			case RegY:
+				g.A *= g.Y
 			}
 		case OpMOVA:
 			switch g.Next() {
@@ -260,7 +269,7 @@ func assembleOpcodeStatement(stmt *ast.OpcodeStatement, program []Word, refs []R
 
 	switch operand := stmt.Operand.(type) {
 	case *ast.RegisterLiteral:
-		if !slices.Contains([]Word{OpADDA, OpMOVA}, opcode) {
+		if !slices.Contains([]Word{OpADDA, OpMULA, OpMOVA}, opcode) {
 			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
 		}
 		register, ok := registers[operand.TokenLiteral()]
