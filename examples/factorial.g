@@ -10,7 +10,7 @@
 MULA X
 DECX
 CMPX 0
-BINZ factorial ; branch to .factorial if result of CMPX is Zero (0)
+BINZ factorial ; branch to .factorial if result of CMPX is not zero (0)
 CLRC ; clear the compare result
 RTRN ; exit subroutine
 
