@@ -203,7 +203,7 @@ func (g *Machine) RunProgram(program []Word) {
 	g.Run()
 }
 
-type Ref struct {
+type ref struct {
 	Name    string
 	Line    int
 	Address Word
@@ -242,7 +242,7 @@ func (t *symbolTable) lookup(name string) (Word, bool) {
 
 func Assemble(reader io.Reader) ([]Word, error) {
 	program := []Word{}
-	refs := []Ref{}
+	refs := []ref{}
 	symbols := newSymbolTable()
 
 	l, err := lexer.New(reader)
@@ -289,7 +289,7 @@ func Assemble(reader io.Reader) ([]Word, error) {
 	return program, nil
 }
 
-func assembleOpcodeStatement(stmt *ast.OpcodeStatement, program []Word, refs []Ref) ([]Word, []Ref, error) {
+func assembleOpcodeStatement(stmt *ast.OpcodeStatement, program []Word, refs []ref) ([]Word, []ref, error) {
 	opcode, ok := opcodes[stmt.TokenLiteral()]
 	if !ok {
 		return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, stmt.TokenLiteral(), stmt.Token.Line)
@@ -314,12 +314,12 @@ func assembleOpcodeStatement(stmt *ast.OpcodeStatement, program []Word, refs []R
 		if !slices.Contains([]Word{OpSETA, OpJUMP, OpJXNZ}, opcode) {
 			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
 		}
-		ref := Ref{
+		rf := ref{
 			Name:    operand.TokenLiteral(),
 			Line:    operand.Token.Line,
 			Address: Word(len(program)),
 		}
-		refs = append(refs, ref)
+		refs = append(refs, rf)
 		program = append(program, Word(0))
 	case *ast.IntegerLiteral:
 		if !slices.Contains([]Word{OpSETA, OpSETX, OpSETY, OpJUMP}, opcode) {
