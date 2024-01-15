@@ -143,6 +143,20 @@ func TestDECA(t *testing.T) {
 	}
 }
 
+func TestDECX(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	g.X = 1
+	var wantX gmachine.Word = 0
+	err := assembleAndRunFromString(g, "DECX")
+	if err != nil {
+		t.Fatal("didn't expect an error", err)
+	}
+	if wantX != g.X {
+		t.Errorf("want X value %d, got %d", wantX, g.X)
+	}
+}
+
 func TestSETA(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)

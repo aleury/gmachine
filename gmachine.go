@@ -25,6 +25,7 @@ const (
 	OpOUTA
 	OpINCA
 	OpDECA
+	OpDECX
 	OpADDA
 	OpMULA
 	OpMOVA
@@ -66,6 +67,7 @@ var opcodes = map[string]Word{
 	"OUTA": OpOUTA,
 	"INCA": OpINCA,
 	"DECA": OpDECA,
+	"DECX": OpDECX,
 	"ADDA": OpADDA,
 	"MULA": OpMULA,
 	"MOVA": OpMOVA,
@@ -130,6 +132,8 @@ func (g *Machine) Run() {
 			g.A++
 		case OpDECA:
 			g.A--
+		case OpDECX:
+			g.X--
 		case OpADDA:
 			switch g.Next() {
 			case RegX:
