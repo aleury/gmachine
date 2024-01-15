@@ -104,6 +104,32 @@ func TestINCA(t *testing.T) {
 	}
 }
 
+func TestINCX(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := assembleAndRunFromString(g, "INCX")
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	var wantX gmachine.Word = 1
+	if wantX != g.X {
+		t.Errorf("want X value %d, got %d", wantX, g.X)
+	}
+}
+
+func TestINCY(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := assembleAndRunFromString(g, "INCY")
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	var wantY gmachine.Word = 1
+	if wantY != g.Y {
+		t.Errorf("want Y value %d, got %d", wantY, g.Y)
+	}
+}
+
 func TestIllegalInstruction(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)

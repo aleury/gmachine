@@ -15,6 +15,8 @@ func TestLookupIdent(t *testing.T) {
 		{"NOOP", token.OPCODE},
 		{"OUTA", token.OPCODE},
 		{"INCA", token.OPCODE},
+		{"INCX", token.OPCODE},
+		{"INCY", token.OPCODE},
 		{"DECA", token.OPCODE},
 		{"DECX", token.OPCODE},
 		{"DECY", token.OPCODE},
@@ -29,6 +31,7 @@ func TestLookupIdent(t *testing.T) {
 		{"JUMP", token.OPCODE},
 		{"JXNZ", token.OPCODE},
 		{"X", token.REGISTER},
+		{"Y", token.REGISTER},
 		{"test", token.IDENT},
 		{".test", token.IDENT},
 	}

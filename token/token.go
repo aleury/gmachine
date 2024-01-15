@@ -23,6 +23,8 @@ var opcodes = map[string]TokenType{
 	"NOOP": OPCODE,
 	"OUTA": OPCODE,
 	"INCA": OPCODE,
+	"INCX": OPCODE,
+	"INCY": OPCODE,
 	"DECA": OPCODE,
 	"DECX": OPCODE,
 	"DECY": OPCODE,

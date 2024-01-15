@@ -24,6 +24,8 @@ const (
 	OpNOOP
 	OpOUTA
 	OpINCA
+	OpINCX
+	OpINCY
 	OpDECA
 	OpDECX
 	OpDECY
@@ -68,6 +70,8 @@ var opcodes = map[string]Word{
 	"NOOP": OpNOOP,
 	"OUTA": OpOUTA,
 	"INCA": OpINCA,
+	"INCX": OpINCX,
+	"INCY": OpINCY,
 	"DECA": OpDECA,
 	"DECX": OpDECX,
 	"DECY": OpDECY,
@@ -134,6 +138,10 @@ func (g *Machine) Run() {
 			binary.Write(g.Out, binary.BigEndian, g.A)
 		case OpINCA:
 			g.A++
+		case OpINCX:
+			g.X++
+		case OpINCY:
+			g.Y++
 		case OpDECA:
 			g.A--
 		case OpDECX:
