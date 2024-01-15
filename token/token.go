@@ -35,6 +35,7 @@ var opcodes = map[string]TokenType{
 	"PSHA": OPCODE,
 	"POPA": OPCODE,
 	"JUMP": OPCODE,
+	"JXNZ": OPCODE,
 }
 
 var pragmas = map[string]TokenType{

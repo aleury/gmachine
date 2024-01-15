@@ -1,8 +1,8 @@
 ; Tasks:
 ; 1. Implement MULA - done
 ; 2. Implement SETX - done
-; 3. Implement DECX (and DECA, DECY)
-; 4. Implement JXNZ
+; 3. Implement DECX (and DECA, DECY) - done
+; 4. Implement JXNZ - done
 ; 5. Implement CALL and RTRN
 
 .factorial

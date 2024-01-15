@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"gmachine/parser"
 	"io"
 	"os"
@@ -421,6 +422,68 @@ func TestJUMPWithInvalidNumber(t *testing.T) {
 	}
 	if !errors.Is(err, wantErr) {
 		t.Errorf("wanted error %v, got %v", wantErr, err)
+	}
+}
+
+func TestJXNZ(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	var wantA gmachine.Word = 10
+	var wantX gmachine.Word = 0
+	err := assembleAndRunFromString(g, `
+SETA 0
+SETX 10
+.loop
+INCA
+DECX
+JXNZ loop
+HALT
+`)
+	if err != nil {
+		t.Fatal("didn't expect an error", err)
+	}
+	if wantA != g.A {
+		t.Errorf("want A value %d, got %d", wantA, g.A)
+	}
+	if wantX != g.X {
+		t.Errorf("want X value %d, got %d", wantX, g.X)
+	}
+}
+
+func TestFactorial(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		factorial int
+		wantA     gmachine.Word
+	}{
+		{1, 1},
+		{2, 2},
+		{3, 6},
+		{4, 24},
+		{5, 120},
+		{6, 720},
+		{7, 5040},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%d!", tt.factorial), func(t *testing.T) {
+			g := gmachine.New(nil)
+			program := fmt.Sprintf(`
+SETA 1
+SETX %d
+.factorial
+MULA X
+DECX
+JXNZ factorial
+HALT
+`, tt.factorial)
+			err := assembleAndRunFromString(g, program)
+			if err != nil {
+				t.Fatal("didn't expect an error", err)
+			}
+			if tt.wantA != g.A {
+				t.Errorf("want A value %d, got %d", tt.wantA, g.A)
+			}
+		})
 	}
 }
 

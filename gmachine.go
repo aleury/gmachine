@@ -36,6 +36,7 @@ const (
 	OpPSHA
 	OpPOPA
 	OpJUMP
+	OpJXNZ
 )
 
 const (
@@ -79,6 +80,7 @@ var opcodes = map[string]Word{
 	"PSHA": OpPSHA,
 	"POPA": OpPOPA,
 	"JUMP": OpJUMP,
+	"JXNZ": OpJXNZ,
 }
 
 type Word uint64
@@ -173,10 +175,17 @@ func (g *Machine) Run() {
 			g.A = g.Memory[g.S]
 		case OpJUMP:
 			g.P = g.Memory[g.MemOffset+g.P]
+		case OpJXNZ:
+			if g.X != 0 {
+				g.P = g.Memory[g.MemOffset+g.P]
+			} else {
+				g.P++
+			}
 		default:
 			g.E = ExceptionIllegalInstruction
 			return
 		}
+
 	}
 }
 
@@ -294,7 +303,7 @@ func assembleOpcodeStatement(stmt *ast.OpcodeStatement, program []Word, refs []R
 		}
 		program = append(program, register)
 	case *ast.Identifier:
-		if !slices.Contains([]Word{OpSETA, OpJUMP}, opcode) {
+		if !slices.Contains([]Word{OpSETA, OpJUMP, OpJXNZ}, opcode) {
 			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
 		}
 		ref := Ref{

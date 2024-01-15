@@ -27,6 +27,7 @@ func TestLookupIdent(t *testing.T) {
 		{"PSHA", token.OPCODE},
 		{"POPA", token.OPCODE},
 		{"JUMP", token.OPCODE},
+		{"JXNZ", token.OPCODE},
 		{"X", token.REGISTER},
 		{"test", token.IDENT},
 		{".test", token.IDENT},
