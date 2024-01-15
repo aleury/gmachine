@@ -28,6 +28,7 @@ var opcodes = map[string]TokenType{
 	"MULA": OPCODE,
 	"MOVA": OPCODE,
 	"SETA": OPCODE,
+	"SETX": OPCODE,
 	"PSHA": OPCODE,
 	"POPA": OPCODE,
 	"JUMP": OPCODE,

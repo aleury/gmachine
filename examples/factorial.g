@@ -1,5 +1,5 @@
 ; Tasks:
-; 1. Implement MULA
+; 1. Implement MULA - done
 ; 2. Implement SETX
 ; 3. Implement DECX (and DECA, DECY)
 ; 4. Implement JXNZ

@@ -156,6 +156,19 @@ func TestSETA(t *testing.T) {
 	}
 }
 
+func TestSETX(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	var wantX gmachine.Word = 5
+	err := assembleAndRunFromString(g, "SETX 5")
+	if err != nil {
+		t.Fatal("didn't expect an error", err)
+	}
+	if wantX != g.X {
+		t.Errorf("want X value %d, got %d", wantX, g.X)
+	}
+}
+
 func TestAssemble(t *testing.T) {
 	t.Parallel()
 	want := []gmachine.Word{gmachine.OpINCA, gmachine.OpHALT}
