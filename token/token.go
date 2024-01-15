@@ -25,6 +25,7 @@ var opcodes = map[string]TokenType{
 	"INCA": OPCODE,
 	"DECA": OPCODE,
 	"DECX": OPCODE,
+	"DECY": OPCODE,
 	"ADDA": OPCODE,
 	"MULA": OPCODE,
 	"MOVA": OPCODE,
