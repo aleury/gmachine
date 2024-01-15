@@ -278,12 +278,12 @@ func Assemble(reader io.Reader) ([]Word, error) {
 	}
 
 	// Resolve references to labels and consts
-	for _, refs := range refs {
-		value, ok := symbols.lookup(refs.Name)
+	for _, r := range refs {
+		value, ok := symbols.lookup(r.Name)
 		if !ok {
-			return nil, fmt.Errorf("%w: %s at line %d", ErrUnknownIdentifier, refs.Name, refs.Line)
+			return nil, fmt.Errorf("%w: %s at line %d", ErrUnknownIdentifier, r.Name, r.Line)
 		}
-		program[refs.Address] = value
+		program[r.Address] = value
 	}
 
 	return program, nil
@@ -314,12 +314,12 @@ func assembleOpcodeStatement(stmt *ast.OpcodeStatement, program []Word, refs []r
 		if !slices.Contains([]Word{OpSETA, OpJUMP, OpJXNZ}, opcode) {
 			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
 		}
-		rf := ref{
+		r := ref{
 			Name:    operand.TokenLiteral(),
 			Line:    operand.Token.Line,
 			Address: Word(len(program)),
 		}
-		refs = append(refs, rf)
+		refs = append(refs, r)
 		program = append(program, Word(0))
 	case *ast.IntegerLiteral:
 		if !slices.Contains([]Word{OpSETA, OpSETX, OpSETY, OpJUMP}, opcode) {
