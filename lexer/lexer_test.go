@@ -43,8 +43,11 @@ DECA
 PSHA
 POPA
 MOVA X
+MOVA Y
 OUTA
-HALT`
+HALT
+"test"
+""`
 	tests := []struct {
 		expectedType    token.TokenType
 		expectedLiteral string
@@ -69,9 +72,13 @@ HALT`
 		{token.OPCODE, "POPA", 20},
 		{token.OPCODE, "MOVA", 21},
 		{token.REGISTER, "X", 21},
-		{token.OPCODE, "OUTA", 22},
-		{token.OPCODE, "HALT", 23},
-		{token.EOF, "", 23},
+		{token.OPCODE, "MOVA", 22},
+		{token.REGISTER, "Y", 22},
+		{token.OPCODE, "OUTA", 23},
+		{token.OPCODE, "HALT", 24},
+		{token.STRING, "test", 25},
+		{token.STRING, "", 26},
+		{token.EOF, "", 26},
 	}
 
 	l := newLexerFromString(input)

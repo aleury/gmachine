@@ -40,6 +40,9 @@ func (l *Lexer) NextToken() token.Token {
 		case l.ch == '\'':
 			char := l.readCharacter()
 			return l.newToken(token.CHAR, char)
+		case l.ch == '"':
+			str := l.readString()
+			return l.newToken(token.STRING, str)
 		case l.ch == 0:
 			return l.newToken(token.EOF, "")
 		case unicode.IsDigit(l.ch):
@@ -73,6 +76,19 @@ func (l *Lexer) readUntil(r rune) string {
 		l.readChar()
 	}
 	return l.input[start:l.position]
+}
+
+func (l *Lexer) readString() string {
+	position := l.position + 1
+	for {
+		l.readChar()
+		if l.ch == '"' || l.ch == 0 {
+			break
+		}
+	}
+	// consume closing quote
+	l.readChar()
+	return l.input[position : l.position-1]
 }
 
 func (l *Lexer) readCharacter() string {

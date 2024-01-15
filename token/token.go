@@ -11,6 +11,7 @@ const (
 	IDENT               = "IDENT"
 	INT                 = "INT"
 	CHAR                = "CHAR"
+	STRING              = "STRING"
 )
 
 var registers = map[string]TokenType{
