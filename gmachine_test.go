@@ -169,6 +169,19 @@ func TestSETX(t *testing.T) {
 	}
 }
 
+func TestSETY(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	var wantY gmachine.Word = 5
+	err := assembleAndRunFromString(g, "SETY 5")
+	if err != nil {
+		t.Fatal("didn't expect an error", err)
+	}
+	if wantY != g.Y {
+		t.Errorf("want Y value %d, got %d", wantY, g.Y)
+	}
+}
+
 func TestAssemble(t *testing.T) {
 	t.Parallel()
 	want := []gmachine.Word{gmachine.OpINCA, gmachine.OpHALT}
@@ -217,6 +230,32 @@ func TestSETA_ReturnsErrorForInvalidNumber(t *testing.T) {
 	}
 }
 
+func TestSETX_ReturnsErrorForInvalidNumber(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := assembleAndRunFromString(g, "SETX 2a")
+	wantErr := parser.ErrInvalidIntegerLiteral
+	if err == nil {
+		t.Fatal("expected an error to be returned for invalid argument to SETA")
+	}
+	if !errors.Is(err, wantErr) {
+		t.Errorf("wanted error %v, got %v", wantErr, err)
+	}
+}
+
+func TestSETY_ReturnsErrorForInvalidNumber(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := assembleAndRunFromString(g, "SETY 2a")
+	wantErr := parser.ErrInvalidIntegerLiteral
+	if err == nil {
+		t.Fatal("expected an error to be returned for invalid argument to SETA")
+	}
+	if !errors.Is(err, wantErr) {
+		t.Errorf("wanted error %v, got %v", wantErr, err)
+	}
+}
+
 func TestSETA_AcceptsCharacterLiteral(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
@@ -228,6 +267,34 @@ func TestSETA_AcceptsCharacterLiteral(t *testing.T) {
 	gotA := rune(g.A)
 	if wantA != gotA {
 		t.Errorf("want A %d, got %d", wantA, gotA)
+	}
+}
+
+func TestSETX_AcceptsCharacterLiteral(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := assembleAndRunFromString(g, "SETX 'h'")
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	wantX := 'h'
+	gotX := rune(g.X)
+	if wantX != gotX {
+		t.Errorf("want X %d, got %d", wantX, gotX)
+	}
+}
+
+func TestSETY_AcceptsCharacterLiteral(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := assembleAndRunFromString(g, "SETY 'h'")
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	wantY := 'h'
+	gotY := rune(g.Y)
+	if wantY != gotY {
+		t.Errorf("want Y %d, got %d", wantY, gotY)
 	}
 }
 

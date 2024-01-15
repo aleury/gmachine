@@ -30,6 +30,7 @@ const (
 	OpMOVA
 	OpSETA
 	OpSETX
+	OpSETY
 	OpPSHA
 	OpPOPA
 	OpJUMP
@@ -70,6 +71,7 @@ var opcodes = map[string]Word{
 	"MOVA": OpMOVA,
 	"SETA": OpSETA,
 	"SETX": OpSETX,
+	"SETY": OpSETY,
 	"PSHA": OpPSHA,
 	"POPA": OpPOPA,
 	"JUMP": OpJUMP,
@@ -153,6 +155,8 @@ func (g *Machine) Run() {
 			g.A = g.Next()
 		case OpSETX:
 			g.X = g.Next()
+		case OpSETY:
+			g.Y = g.Next()
 		case OpPSHA:
 			g.Memory[g.S] = g.A
 			g.S++
@@ -293,12 +297,12 @@ func assembleOpcodeStatement(stmt *ast.OpcodeStatement, program []Word, refs []R
 		refs = append(refs, ref)
 		program = append(program, Word(0))
 	case *ast.IntegerLiteral:
-		if !slices.Contains([]Word{OpSETA, OpSETX, OpJUMP}, opcode) {
+		if !slices.Contains([]Word{OpSETA, OpSETX, OpSETY, OpJUMP}, opcode) {
 			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
 		}
 		program = append(program, Word(operand.Value))
 	case *ast.CharacterLiteral:
-		if opcode != OpSETA {
+		if !slices.Contains([]Word{OpSETA, OpSETX, OpSETY}, opcode) {
 			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
 		}
 		program = append(program, Word(operand.Value))
