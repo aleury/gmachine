@@ -46,6 +46,65 @@ func TestParseProgram_ParsesLabelDefinitions(t *testing.T) {
 	}
 }
 
+func TestParseProgram_ParsesConstantDefinition(t *testing.T) {
+	t.Parallel()
+
+	input := `CONS c 10`
+	l := newLexerFromString(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+	if program == nil {
+		t.Fatal("ParseProgram() returned nil")
+	}
+
+	wantStatements := 1
+	gotStatements := len(program.Statements)
+	if wantStatements != gotStatements {
+		t.Fatalf("program.Statements does not contain %d statements. got %d", wantStatements, gotStatements)
+	}
+
+	tests := []struct {
+		wantCons       string
+		wantIdentifier string
+		wantValue      uint64
+	}{
+		{"CONS", "c", 10},
+	}
+
+	for i, tt := range tests {
+		stmt := program.Statements[i]
+
+		if stmt.TokenLiteral() != tt.wantCons {
+			t.Fatalf("stmt.TokenLiteral not %s. got=%q", tt.wantCons, stmt.TokenLiteral())
+		}
+
+		consDefn, ok := stmt.(*ast.ConstantDefinitionStatement)
+		if !ok {
+			t.Fatalf("want stmt *ast.ConstantDefinitionStatement. got=%T", stmt)
+		}
+
+		ident := consDefn.Name
+		if ident == nil {
+			t.Fatal("didn't expect constant definition identifier to be nil")
+		}
+		if ident.Value != tt.wantIdentifier {
+			t.Fatalf("want identifier %s, got %s", tt.wantIdentifier, ident.Value)
+		}
+
+		value := consDefn.Value
+		if value == nil {
+			t.Fatal("didn't expect value expression to be nil")
+		}
+		valueExpr, ok := value.(*ast.IntegerLiteral)
+		if !ok {
+			t.Fatalf("value not *ast.IntegerLiteral. got=%T", value)
+		}
+		if valueExpr.Value != tt.wantValue {
+			t.Fatalf("wanted value %d, got %d", tt.wantValue, valueExpr.Value)
+		}
+	}
+}
+
 func TestParseProgram_ParsesOpcodesWithoutOperand(t *testing.T) {
 	t.Parallel()
 
@@ -164,7 +223,7 @@ JUMP 42
 
 		operandExpr, ok := operand.(*ast.IntegerLiteral)
 		if !ok {
-			t.Fatalf("operand not *ast.Integer. got=%T", operand)
+			t.Fatalf("operand not *ast.IntegerLiteral. got=%T", operand)
 		}
 		if operandExpr.Value != tt.expectedOperand {
 			t.Fatalf("operand.Value not %d. got=%d", tt.expectedOperand, operandExpr.Value)
