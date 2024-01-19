@@ -11,6 +11,8 @@ func TestLookupIdent(t *testing.T) {
 		given string
 		want  token.TokenType
 	}{
+		{"CONS", token.CONSTANT_DEFINITION},
+		{"VARB", token.VARIABLE_DEFINITION},
 		{"HALT", token.OPCODE},
 		{"NOOP", token.OPCODE},
 		{"OUTA", token.OPCODE},

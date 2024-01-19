@@ -12,8 +12,6 @@ import (
 	"io"
 	"os"
 	"strings"
-
-	"golang.org/x/exp/slices"
 )
 
 const MemSize = 1024
@@ -32,6 +30,7 @@ const (
 	OpADDA
 	OpMULA
 	OpMOVA
+	OpMOVE // temporary solution for destinguishing between moving between memory vs between registers
 	OpSETA
 	OpSETX
 	OpSETY
@@ -169,6 +168,9 @@ func (g *Machine) Run() {
 			case RegY:
 				g.Y = g.A
 			}
+		case OpMOVE:
+			offset := g.Next()
+			g.A = g.Memory[g.MemOffset+offset]
 		case OpSETA:
 			g.A = g.Next()
 		case OpSETX:
@@ -211,14 +213,16 @@ type ref struct {
 }
 
 type symbolTable struct {
-	labels map[string]Word
-	consts map[string]Word
+	labels    map[string]Word
+	consts    map[string]Word
+	variables map[string]Word
 }
 
 func newSymbolTable() *symbolTable {
 	return &symbolTable{
-		labels: make(map[string]Word),
-		consts: make(map[string]Word),
+		labels:    make(map[string]Word),
+		consts:    make(map[string]Word),
+		variables: make(map[string]Word),
 	}
 }
 
@@ -230,11 +234,18 @@ func (t *symbolTable) defineConst(name string, value Word) {
 	t.consts[name] = value
 }
 
+func (t *symbolTable) defineVariable(name string, value Word) {
+	t.variables[name] = value
+}
+
 func (t *symbolTable) lookup(name string) (Word, bool) {
 	if value, ok := t.labels[name]; ok {
 		return value, ok
 	}
 	if value, ok := t.consts[name]; ok {
+		return value, ok
+	}
+	if value, ok := t.variables[name]; ok {
 		return value, ok
 	}
 	return Word(0), false
@@ -252,10 +263,10 @@ func Assemble(reader io.Reader) ([]Word, error) {
 	p := parser.New(l)
 	astProgram := p.ParseProgram()
 	if astProgram == nil {
-		return program, errors.New("failed to parse program")
+		return nil, errors.New("failed to parse program")
 	}
 	if len(p.Errors()) > 0 {
-		return program, p.Errors()[0]
+		return nil, p.Errors()[0]
 	}
 
 	// Assemble program
@@ -267,6 +278,20 @@ func Assemble(reader io.Reader) ([]Word, error) {
 		case *ast.LabelDefinitionStatement:
 			name := strings.TrimPrefix(stmt.TokenLiteral(), ".")
 			symbols.defineLabel(name, Word(len(program)))
+		case *ast.VariableDefinitionStatement:
+			symbols.defineVariable(stmt.Name.Value, Word(len(program)))
+			switch operand := stmt.Value.(type) {
+			case *ast.IntegerLiteral:
+				program = append(program, Word(operand.Value))
+			case *ast.StringLiteral:
+				strSlice := make([]Word, len(operand.Value))
+				for i, c := range operand.Value {
+					strSlice[i] = Word(c)
+				}
+				program = append(program, strSlice...)
+			default:
+				return nil, errors.New("invalid variable definition")
+			}
 		case *ast.OpcodeStatement:
 			program, refs, err = assembleOpcodeStatement(stmt, program, refs)
 			if err != nil {
@@ -290,49 +315,95 @@ func Assemble(reader io.Reader) ([]Word, error) {
 }
 
 func assembleOpcodeStatement(stmt *ast.OpcodeStatement, program []Word, refs []ref) ([]Word, []ref, error) {
-	opcode, ok := opcodes[stmt.TokenLiteral()]
-	if !ok {
-		return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, stmt.TokenLiteral(), stmt.Token.Line)
-	}
-	program = append(program, opcode)
-
 	if stmt.Operand == nil {
+		opcode, ok := opcodes[stmt.TokenLiteral()]
+		if !ok {
+			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, stmt.TokenLiteral(), stmt.Token.Line)
+		}
+		program = append(program, opcode)
 		return program, refs, nil
 	}
 
-	switch operand := stmt.Operand.(type) {
-	case *ast.RegisterLiteral:
-		if !slices.Contains([]Word{OpADDA, OpMULA, OpMOVA}, opcode) {
+	opcodeStr := stmt.TokenLiteral()
+
+	switch opcodeStr {
+	case "MOVA":
+		switch operand := stmt.Operand.(type) {
+		case *ast.RegisterLiteral:
+			register, ok := registers[operand.TokenLiteral()]
+			if !ok {
+				return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, operand.TokenLiteral(), operand.Token.Line)
+			}
+			program = append(program, OpMOVA, register)
+		case *ast.Identifier:
+			program = append(program, OpMOVE)
+			r := ref{
+				Name:    operand.TokenLiteral(),
+				Line:    operand.Token.Line,
+				Address: Word(len(program)),
+			}
+			refs = append(refs, r)
+			program = append(program, Word(0))
+		default:
 			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
 		}
-		register, ok := registers[operand.TokenLiteral()]
+	case "MULA", "ADDA":
+		opcode, ok := opcodes[opcodeStr]
 		if !ok {
-			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, operand.TokenLiteral(), operand.Token.Line)
+			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, stmt.TokenLiteral(), stmt.Token.Line)
 		}
-		program = append(program, register)
-	case *ast.Identifier:
-		if !slices.Contains([]Word{OpSETA, OpJUMP, OpJXNZ}, opcode) {
+		switch operand := stmt.Operand.(type) {
+		case *ast.RegisterLiteral:
+			register, ok := registers[operand.TokenLiteral()]
+			if !ok {
+				return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, operand.TokenLiteral(), operand.Token.Line)
+			}
+			program = append(program, opcode, register)
+		default:
 			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
 		}
-		r := ref{
-			Name:    operand.TokenLiteral(),
-			Line:    operand.Token.Line,
-			Address: Word(len(program)),
+	case "SETA", "SETX", "SETY":
+		opcode, ok := opcodes[opcodeStr]
+		if !ok {
+			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, stmt.TokenLiteral(), stmt.Token.Line)
 		}
-		refs = append(refs, r)
-		program = append(program, Word(0))
-	case *ast.IntegerLiteral:
-		if !slices.Contains([]Word{OpSETA, OpSETX, OpSETY, OpJUMP}, opcode) {
+		switch operand := stmt.Operand.(type) {
+		case *ast.IntegerLiteral:
+			program = append(program, opcode, Word(operand.Value))
+		case *ast.CharacterLiteral:
+			program = append(program, opcode, Word(operand.Value))
+		case *ast.Identifier:
+			program = append(program, opcode)
+			r := ref{
+				Name:    operand.TokenLiteral(),
+				Line:    operand.Token.Line,
+				Address: Word(len(program)),
+			}
+			refs = append(refs, r)
+			program = append(program, Word(0))
+		default:
 			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
 		}
-		program = append(program, Word(operand.Value))
-	case *ast.CharacterLiteral:
-		if !slices.Contains([]Word{OpSETA, OpSETX, OpSETY}, opcode) {
+	case "JUMP", "JXNZ":
+		opcode, ok := opcodes[opcodeStr]
+		if !ok {
+			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, stmt.TokenLiteral(), stmt.Token.Line)
+		}
+		switch operand := stmt.Operand.(type) {
+		case *ast.IntegerLiteral:
+			program = append(program, opcode, Word(operand.Value))
+		case *ast.Identifier:
+			program = append(program, opcode)
+			r := ref{
+				Name:    operand.TokenLiteral(),
+				Line:    operand.Token.Line,
+				Address: Word(len(program)),
+			}
+			refs = append(refs, r)
+			program = append(program, Word(0))
+		default:
 			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
 		}
-		program = append(program, Word(operand.Value))
-	default:
-		return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
 	}
 
 	return program, refs, nil

@@ -105,6 +105,124 @@ func TestParseProgram_ParsesConstantDefinition(t *testing.T) {
 	}
 }
 
+func TestParseProgram_ParsesStringVariableDefinition(t *testing.T) {
+	t.Parallel()
+
+	input := `VARB msg "hello"`
+	l := newLexerFromString(input)
+	p := parser.New(l)
+
+	program := p.ParseProgram()
+	if program == nil {
+		t.Fatal("ParseProgram() returned nil")
+	}
+
+	wantStatements := 1
+	gotStatements := len(program.Statements)
+	if wantStatements != gotStatements {
+		t.Fatalf("program.Statements does not contain %d statements. got %d", wantStatements, gotStatements)
+	}
+
+	tests := []struct {
+		wantVarb       string
+		wantIdentifier string
+		wantValue      string
+	}{
+		{"VARB", "msg", "hello"},
+	}
+
+	for i, tt := range tests {
+		stmt := program.Statements[i]
+		if stmt.TokenLiteral() != tt.wantVarb {
+			t.Fatalf("stmt.TokenLiteral not %s. got=%q", tt.wantVarb, stmt.TokenLiteral())
+		}
+
+		varbDefn, ok := stmt.(*ast.VariableDefinitionStatement)
+		if !ok {
+			t.Fatalf("want stmt *ast.VariableDefinitionStatement. got=%T", stmt)
+		}
+
+		ident := varbDefn.Name
+		if ident == nil {
+			t.Fatal("didn't expect variable definition identifier to be nil")
+		}
+		if ident.Value != tt.wantIdentifier {
+			t.Fatalf("want identifier %s, got %s", tt.wantIdentifier, ident.Value)
+		}
+
+		value := varbDefn.Value
+		if value == nil {
+			t.Fatal("didn't expect value expression to be nil")
+		}
+		valueExpr, ok := value.(*ast.StringLiteral)
+		if !ok {
+			t.Fatalf("value not *ast.StringLiteral. got=%T", value)
+		}
+		if valueExpr.Value != tt.wantValue {
+			t.Fatalf("wanted value %s, got %s", tt.wantValue, valueExpr.Value)
+		}
+	}
+}
+
+func TestParseProgram_ParsesIntegerVariableDefinition(t *testing.T) {
+	t.Parallel()
+
+	input := `VARB num 100`
+	l := newLexerFromString(input)
+	p := parser.New(l)
+
+	program := p.ParseProgram()
+	if program == nil {
+		t.Fatal("ParseProgram() returned nil")
+	}
+
+	wantStatements := 1
+	gotStatements := len(program.Statements)
+	if wantStatements != gotStatements {
+		t.Fatalf("program.Statements does not contain %d statements. got %d", wantStatements, gotStatements)
+	}
+
+	tests := []struct {
+		wantVarb       string
+		wantIdentifier string
+		wantValue      uint64
+	}{
+		{"VARB", "num", 100},
+	}
+
+	for i, tt := range tests {
+		stmt := program.Statements[i]
+		if stmt.TokenLiteral() != tt.wantVarb {
+			t.Fatalf("stmt.TokenLiteral not %s. got=%q", tt.wantVarb, stmt.TokenLiteral())
+		}
+
+		varbDefn, ok := stmt.(*ast.VariableDefinitionStatement)
+		if !ok {
+			t.Fatalf("want stmt *ast.VariableDefinitionStatement. got=%T", stmt)
+		}
+
+		ident := varbDefn.Name
+		if ident == nil {
+			t.Fatal("didn't expect variable definition identifier to be nil")
+		}
+		if ident.Value != tt.wantIdentifier {
+			t.Fatalf("want identifier %s, got %s", tt.wantIdentifier, ident.Value)
+		}
+
+		value := varbDefn.Value
+		if value == nil {
+			t.Fatal("didn't expect value expression to be nil")
+		}
+		valueExpr, ok := value.(*ast.IntegerLiteral)
+		if !ok {
+			t.Fatalf("value not *ast.IntegerLiteral. got=%T", value)
+		}
+		if valueExpr.Value != tt.wantValue {
+			t.Fatalf("wanted value %d, got %d", tt.wantValue, valueExpr.Value)
+		}
+	}
+}
+
 func TestParseProgram_ParsesOpcodesWithoutOperand(t *testing.T) {
 	t.Parallel()
 

@@ -8,6 +8,7 @@ const (
 	REGISTER            = "REGISTER"
 	LABEL_DEFINITION    = "LABEL_DEFINITION"
 	CONSTANT_DEFINITION = "CONSTANT_DEFINITION"
+	VARIABLE_DEFINITION = "VARIABLE_DEFINITION"
 	IDENT               = "IDENT"
 	INT                 = "INT"
 	CHAR                = "CHAR"
@@ -43,6 +44,7 @@ var opcodes = map[string]TokenType{
 
 var pragmas = map[string]TokenType{
 	"CONS": CONSTANT_DEFINITION,
+	"VARB": VARIABLE_DEFINITION,
 }
 
 type TokenType string

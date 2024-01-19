@@ -36,6 +36,15 @@ type ConstantDefinitionStatement struct {
 func (cds *ConstantDefinitionStatement) statementNode()       {}
 func (cds *ConstantDefinitionStatement) TokenLiteral() string { return cds.Token.Literal }
 
+type VariableDefinitionStatement struct {
+	Token token.Token // the token.VARIABLE_DEFINITION token
+	Name  *Identifier
+	Value Expression
+}
+
+func (vds *VariableDefinitionStatement) statementNode()       {}
+func (vds *VariableDefinitionStatement) TokenLiteral() string { return vds.Token.Literal }
+
 type LabelDefinitionStatement struct {
 	Token token.Token // the token.LABEL_DEFINITION token
 }
@@ -81,3 +90,11 @@ type CharacterLiteral struct {
 
 func (cl *CharacterLiteral) expressionNode()      {}
 func (cl *CharacterLiteral) TokenLiteral() string { return cl.Token.Literal }
+
+type StringLiteral struct {
+	Token token.Token // the token.STRING token
+	Value string
+}
+
+func (sl *StringLiteral) expressionNode()      {}
+func (sl *StringLiteral) TokenLiteral() string { return sl.Token.Literal }

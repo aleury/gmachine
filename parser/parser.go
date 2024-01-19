@@ -12,8 +12,9 @@ import (
 )
 
 var ErrInvalidOperand error = errors.New("invalid operand")
-var ErrInvalidConstDefinition error = errors.New("invalid constant definition")
 var ErrInvalidIntegerLiteral error = errors.New("invalid integer literal")
+var ErrInvalidConstDefinition error = errors.New("invalid constant definition")
+var ErrInvalidVariableDefinition error = errors.New("invalid variable definition")
 
 type expressionParserFn func() ast.Expression
 
@@ -33,6 +34,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.exprParsers[token.IDENT] = p.parseIdentifier
 	p.exprParsers[token.INT] = p.parseIntegerLiteral
 	p.exprParsers[token.CHAR] = p.parseCharacterLiteral
+	p.exprParsers[token.STRING] = p.parseStringLiteral
 
 	// Read two tokens, so curToken and peekToken are both set
 	p.nextToken()
@@ -73,9 +75,37 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseLabelDefinitionStatement()
 	case token.CONSTANT_DEFINITION:
 		return p.parseConstantDefinitionStatement()
+	case token.VARIABLE_DEFINITION:
+		return p.parseVariableDefinitionStatement()
 	default:
 		return nil
 	}
+}
+
+func (p *Parser) parseVariableDefinitionStatement() ast.Statement {
+	stmt := &ast.VariableDefinitionStatement{Token: p.curToken}
+
+	if p.peekToken.Type != token.IDENT {
+		p.errors = append(p.errors, fmt.Errorf("%w: %s at line %d", ErrInvalidVariableDefinition, p.peekToken.Literal, p.peekToken.Line))
+		return nil
+	}
+
+	p.nextToken()
+	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+	switch p.peekToken.Type {
+	case token.INT:
+		p.nextToken()
+		stmt.Value = p.parseIntegerLiteral()
+	case token.STRING:
+		p.nextToken()
+		stmt.Value = p.parseStringLiteral()
+	default:
+		p.errors = append(p.errors, fmt.Errorf("%w: %s at line %d", ErrInvalidVariableDefinition, p.peekToken.Literal, p.peekToken.Line))
+		return nil
+	}
+
+	return stmt
 }
 
 func (p *Parser) parseConstantDefinitionStatement() ast.Statement {
@@ -135,6 +165,10 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 	intLiteral.Value = value
 
 	return intLiteral
+}
+
+func (p *Parser) parseStringLiteral() ast.Expression {
+	return &ast.StringLiteral{Token: p.curToken, Value: p.curToken.Literal}
 }
 
 func (p *Parser) parseCharacterLiteral() ast.Expression {

@@ -594,11 +594,11 @@ func TestMOVAY(t *testing.T) {
 	}
 }
 
-func TestMOVA_FailsForInvalidRegister(t *testing.T) {
+func TestMOVA_FailsForUnknownIdentifier(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	err := assembleAndRunFromString(g, "MOVA Z")
-	wantErr := gmachine.ErrInvalidOperand
+	wantErr := gmachine.ErrUnknownIdentifier
 	if err == nil {
 		t.Fatal("expected an error to be returned for invalid argument to MOVA")
 	}
@@ -836,6 +836,53 @@ OUTA
 	}
 }
 
+func TestVARB_DeclaresAIntegerVariableInMemory(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := assembleAndRunFromString(g, `VARB num 42`)
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	var want gmachine.Word = 42
+	got := g.Memory[g.MemOffset]
+	if want != got {
+		t.Errorf("want num %d, got %d", want, got)
+	}
+}
+
+func TestMOVA_MovesAVariableToAccumulatorRegister(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := assembleAndRunFromString(g, `
+JUMP start
+VARB num 42
+.start
+MOVA num
+HALT
+`)
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	var wantA gmachine.Word = 42
+	if wantA != g.A {
+		t.Errorf("want A %d, got %d", wantA, g.A)
+	}
+}
+
+func TestVARB_DeclaresAStringVariableInMemory(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := assembleAndRunFromString(g, `VARB msg "hello world"`)
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	want := []gmachine.Word{'h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'}
+	got := g.Memory[int(g.MemOffset) : int(g.MemOffset)+len(want)]
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
+
 func TestCompile(t *testing.T) {
 	t.Parallel()
 
@@ -890,7 +937,8 @@ func TestCompile_FailsForWriteError(t *testing.T) {
 }
 
 func assembleFromString(input string) ([]gmachine.Word, error) {
-	return gmachine.Assemble(strings.NewReader(input))
+	program, err := gmachine.Assemble(strings.NewReader(input))
+	return program, err
 }
 
 func assembleAndRunFromString(g *gmachine.Machine, input string) error {
