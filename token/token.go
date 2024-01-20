@@ -14,6 +14,7 @@ const (
 	CHAR                = "CHAR"
 	STRING              = "STRING"
 	ARROW               = "ARROW"
+	ASTERISK            = "ASTERISK"
 )
 
 var registers = map[string]TokenType{

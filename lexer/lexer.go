@@ -24,7 +24,7 @@ func New(reader io.Reader) (*Lexer, error) {
 		return nil, err
 	}
 	l := &Lexer{input: []rune(string(input)), line: 1}
-	l.readChar()
+	l.readRune()
 	return l, nil
 }
 
@@ -41,10 +41,13 @@ func (l *Lexer) NextToken() token.Token {
 		case l.currentRune == '"':
 			str := l.readString()
 			return l.newToken(token.STRING, str)
+		case l.currentRune == '*':
+			l.readRune()
+			return l.newToken(token.ASTERISK, "*")
 		case l.currentRune == '-':
-			if l.peekChar() == '>' {
-				l.readChar()
-				l.readChar()
+			if l.peekRune() == '>' {
+				l.readRune()
+				l.readRune()
 				return l.newToken(token.ARROW, "->")
 			}
 			return l.newToken(token.ILLEGAL, string(l.currentRune))
@@ -78,7 +81,7 @@ func (l *Lexer) newToken(kind token.TokenType, literal string) token.Token {
 func (l *Lexer) readUntil(r rune) string {
 	start := l.position
 	for l.currentRune != r && l.currentRune != 0 {
-		l.readChar()
+		l.readRune()
 	}
 	return string(l.input[start:l.position])
 }
@@ -86,31 +89,31 @@ func (l *Lexer) readUntil(r rune) string {
 func (l *Lexer) readString() string {
 	position := l.position + 1
 	for {
-		l.readChar()
+		l.readRune()
 		if l.currentRune == '"' || l.currentRune == 0 {
 			break
 		}
 	}
 	// consume closing quote
-	l.readChar()
+	l.readRune()
 	return string(l.input[position : l.position-1])
 }
 
 func (l *Lexer) readCharacter() string {
 	start := l.position
-	l.readChar()
-	l.readChar()
-	l.readChar()
+	l.readRune()
+	l.readRune()
+	l.readRune()
 	return string(l.input[start:l.position])
 }
 
 func (l *Lexer) readIdentifier() string {
 	start := l.position
 	if l.currentRune == '.' {
-		l.readChar()
+		l.readRune()
 	}
 	for unicode.IsLetter(l.currentRune) {
-		l.readChar()
+		l.readRune()
 	}
 	return string(l.input[start:l.position])
 }
@@ -120,17 +123,17 @@ func (l *Lexer) skipWhitespace() {
 		if l.currentRune == '\n' {
 			l.line++
 		}
-		l.readChar()
+		l.readRune()
 	}
 }
 
-func (l *Lexer) readChar() {
-	l.currentRune = l.peekChar()
+func (l *Lexer) readRune() {
+	l.currentRune = l.peekRune()
 	l.position = l.nextRuneIndex
 	l.nextRuneIndex = l.position + 1
 }
 
-func (l *Lexer) peekChar() rune {
+func (l *Lexer) peekRune() rune {
 	if l.nextRuneIndex >= len(l.input) {
 		return 0
 	}

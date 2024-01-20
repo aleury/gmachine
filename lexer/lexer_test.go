@@ -44,6 +44,7 @@ PSHA
 POPA
 MOVE A -> X
 MOVE A -> Y
+MOVE *A -> X
 OUTA
 HALT
 "test"
@@ -78,11 +79,16 @@ HALT
 		{token.REGISTER, "A", 22},
 		{token.ARROW, "->", 22},
 		{token.REGISTER, "Y", 22},
-		{token.INSTRUCTION, "OUTA", 23},
-		{token.INSTRUCTION, "HALT", 24},
-		{token.STRING, "test", 25},
-		{token.STRING, "", 26},
-		{token.EOF, "", 26},
+		{token.INSTRUCTION, "MOVE", 23},
+		{token.ASTERISK, "*", 23},
+		{token.REGISTER, "A", 23},
+		{token.ARROW, "->", 23},
+		{token.REGISTER, "X", 23},
+		{token.INSTRUCTION, "OUTA", 24},
+		{token.INSTRUCTION, "HALT", 25},
+		{token.STRING, "test", 26},
+		{token.STRING, "", 27},
+		{token.EOF, "", 27},
 	}
 
 	l := newLexerFromString(input)
