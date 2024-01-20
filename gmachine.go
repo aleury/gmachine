@@ -29,8 +29,10 @@ const (
 	OpDECY
 	OpADDA
 	OpMULA
-	OpMOVA
-	OpMOVE // temporary solution for destinguishing between moving between memory vs between registers
+	OpMVAX
+	OpMVAY
+	OpMVAV
+	OpMVVA
 	OpSETA
 	OpSETX
 	OpSETY
@@ -57,6 +59,7 @@ var ErrUnknownIdentifier error = errors.New("missing label")
 var ErrInvalidNumber error = errors.New("invalid number")
 var ErrInvalidRegister error = errors.New("invalid register")
 var ErrUndefinedInstruction error = errors.New("undefined instruction")
+var ErrUnknownOpcode error = errors.New("unknown opcode")
 
 var registers = map[string]Word{
 	"A": RegA,
@@ -76,7 +79,10 @@ var opcodes = map[string]Word{
 	"DECY": OpDECY,
 	"ADDA": OpADDA,
 	"MULA": OpMULA,
-	"MOVA": OpMOVA,
+	"MVAX": OpMVAX,
+	"MVAY": OpMVAY,
+	"MVAV": OpMVAV,
+	"MVVA": OpMVVA,
 	"SETA": OpSETA,
 	"SETX": OpSETX,
 	"SETY": OpSETY,
@@ -161,14 +167,14 @@ func (g *Machine) Run() {
 			case RegY:
 				g.A *= g.Y
 			}
-		case OpMOVA:
-			switch g.Next() {
-			case RegX:
-				g.X = g.A
-			case RegY:
-				g.Y = g.A
-			}
-		case OpMOVE:
+		case OpMVAX:
+			g.X = g.A
+		case OpMVAY:
+			g.Y = g.A
+		case OpMVAV:
+			offset := g.Next()
+			g.Memory[g.MemOffset+offset] = g.A
+		case OpMVVA:
 			offset := g.Next()
 			g.A = g.Memory[g.MemOffset+offset]
 		case OpSETA:
@@ -195,7 +201,6 @@ func (g *Machine) Run() {
 			g.E = ExceptionIllegalInstruction
 			return
 		}
-
 	}
 }
 
@@ -272,18 +277,18 @@ func Assemble(reader io.Reader) ([]Word, error) {
 	// Assemble program
 	for _, stmt := range astProgram.Statements {
 		switch stmt := stmt.(type) {
-		case *ast.ConstantDefinitionStatement:
-			value := stmt.Value.(*ast.IntegerLiteral).Value
+		case ast.ConstantDefinitionStatement:
+			value := stmt.Value.(ast.IntegerLiteral).Value
 			symbols.defineConst(stmt.Name.Value, Word(value))
-		case *ast.LabelDefinitionStatement:
+		case ast.LabelDefinitionStatement:
 			name := strings.TrimPrefix(stmt.TokenLiteral(), ".")
 			symbols.defineLabel(name, Word(len(program)))
-		case *ast.VariableDefinitionStatement:
+		case ast.VariableDefinitionStatement:
 			symbols.defineVariable(stmt.Name.Value, Word(len(program)))
 			switch operand := stmt.Value.(type) {
-			case *ast.IntegerLiteral:
+			case ast.IntegerLiteral:
 				program = append(program, Word(operand.Value))
-			case *ast.StringLiteral:
+			case ast.StringLiteral:
 				strSlice := make([]Word, len(operand.Value))
 				for i, c := range operand.Value {
 					strSlice[i] = Word(c)
@@ -292,8 +297,8 @@ func Assemble(reader io.Reader) ([]Word, error) {
 			default:
 				return nil, errors.New("invalid variable definition")
 			}
-		case *ast.OpcodeStatement:
-			program, refs, err = assembleOpcodeStatement(stmt, program, refs)
+		case ast.InstructionStatement:
+			program, refs, err = assembleInstructionStatement(stmt, program, refs)
 			if err != nil {
 				return nil, err
 			}
@@ -314,8 +319,8 @@ func Assemble(reader io.Reader) ([]Word, error) {
 	return program, nil
 }
 
-func assembleOpcodeStatement(stmt *ast.OpcodeStatement, program []Word, refs []ref) ([]Word, []ref, error) {
-	if stmt.Operand == nil {
+func assembleInstructionStatement(stmt ast.InstructionStatement, program []Word, refs []ref) ([]Word, []ref, error) {
+	if stmt.Operand1 == nil {
 		opcode, ok := opcodes[stmt.TokenLiteral()]
 		if !ok {
 			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, stmt.TokenLiteral(), stmt.Token.Line)
@@ -324,36 +329,62 @@ func assembleOpcodeStatement(stmt *ast.OpcodeStatement, program []Word, refs []r
 		return program, refs, nil
 	}
 
-	opcodeStr := stmt.TokenLiteral()
+	instruction := stmt.TokenLiteral()
 
-	switch opcodeStr {
-	case "MOVA":
-		switch operand := stmt.Operand.(type) {
-		case *ast.RegisterLiteral:
-			register, ok := registers[operand.TokenLiteral()]
-			if !ok {
-				return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, operand.TokenLiteral(), operand.Token.Line)
+	switch instruction {
+	case "MOVE":
+		switch operand1 := stmt.Operand1.(type) {
+		case ast.RegisterLiteral:
+			switch operand2 := stmt.Operand2.(type) {
+			case ast.RegisterLiteral:
+				opcodeStr := fmt.Sprintf("%s%s%s", "MV", operand1.TokenLiteral(), operand2.TokenLiteral())
+				opcode, ok := opcodes[opcodeStr]
+				if !ok {
+					return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUnknownOpcode, opcodeStr, stmt.Token.Line)
+				}
+				program = append(program, opcode)
+			case ast.Identifier:
+				opcodeStr := fmt.Sprintf("%s%s%s", "MV", operand1.TokenLiteral(), "V")
+				opcode, ok := opcodes[opcodeStr]
+				if !ok {
+					return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUnknownOpcode, opcodeStr, stmt.Token.Line)
+				}
+				program = append(program, opcode)
+				r := ref{
+					Name:    operand2.TokenLiteral(),
+					Line:    operand2.Token.Line,
+					Address: Word(len(program)),
+				}
+				refs = append(refs, r)
+				program = append(program, Word(0))
 			}
-			program = append(program, OpMOVA, register)
-		case *ast.Identifier:
-			program = append(program, OpMOVE)
-			r := ref{
-				Name:    operand.TokenLiteral(),
-				Line:    operand.Token.Line,
-				Address: Word(len(program)),
+		case ast.Identifier:
+			switch operand2 := stmt.Operand2.(type) {
+			case ast.RegisterLiteral:
+				opcodeStr := fmt.Sprintf("%s%s%s", "MV", "V", operand2.TokenLiteral())
+				opcode, ok := opcodes[opcodeStr]
+				if !ok {
+					return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUnknownOpcode, opcodeStr, stmt.Token.Line)
+				}
+				program = append(program, opcode)
+				r := ref{
+					Name:    operand1.TokenLiteral(),
+					Line:    operand1.Token.Line,
+					Address: Word(len(program)),
+				}
+				refs = append(refs, r)
+				program = append(program, Word(0))
 			}
-			refs = append(refs, r)
-			program = append(program, Word(0))
 		default:
-			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
+			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, operand1.TokenLiteral(), stmt.Token.Line)
 		}
 	case "MULA", "ADDA":
-		opcode, ok := opcodes[opcodeStr]
+		opcode, ok := opcodes[instruction]
 		if !ok {
 			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, stmt.TokenLiteral(), stmt.Token.Line)
 		}
-		switch operand := stmt.Operand.(type) {
-		case *ast.RegisterLiteral:
+		switch operand := stmt.Operand1.(type) {
+		case ast.RegisterLiteral:
 			register, ok := registers[operand.TokenLiteral()]
 			if !ok {
 				return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidRegister, operand.TokenLiteral(), operand.Token.Line)
@@ -363,16 +394,16 @@ func assembleOpcodeStatement(stmt *ast.OpcodeStatement, program []Word, refs []r
 			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
 		}
 	case "SETA", "SETX", "SETY":
-		opcode, ok := opcodes[opcodeStr]
+		opcode, ok := opcodes[instruction]
 		if !ok {
 			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, stmt.TokenLiteral(), stmt.Token.Line)
 		}
-		switch operand := stmt.Operand.(type) {
-		case *ast.IntegerLiteral:
+		switch operand := stmt.Operand1.(type) {
+		case ast.IntegerLiteral:
 			program = append(program, opcode, Word(operand.Value))
-		case *ast.CharacterLiteral:
+		case ast.CharacterLiteral:
 			program = append(program, opcode, Word(operand.Value))
-		case *ast.Identifier:
+		case ast.Identifier:
 			program = append(program, opcode)
 			r := ref{
 				Name:    operand.TokenLiteral(),
@@ -385,14 +416,14 @@ func assembleOpcodeStatement(stmt *ast.OpcodeStatement, program []Word, refs []r
 			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrInvalidOperand, stmt.TokenLiteral(), stmt.Token.Line)
 		}
 	case "JUMP", "JXNZ":
-		opcode, ok := opcodes[opcodeStr]
+		opcode, ok := opcodes[instruction]
 		if !ok {
 			return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUndefinedInstruction, stmt.TokenLiteral(), stmt.Token.Line)
 		}
-		switch operand := stmt.Operand.(type) {
-		case *ast.IntegerLiteral:
+		switch operand := stmt.Operand1.(type) {
+		case ast.IntegerLiteral:
 			program = append(program, opcode, Word(operand.Value))
-		case *ast.Identifier:
+		case ast.Identifier:
 			program = append(program, opcode)
 			r := ref{
 				Name:    operand.TokenLiteral(),

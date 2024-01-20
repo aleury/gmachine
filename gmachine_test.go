@@ -568,11 +568,11 @@ POPA
 	}
 }
 
-func TestMOVAX(t *testing.T) {
+func TestMOVE_CopiesRegisterAToRegisterX(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	var wantX gmachine.Word = 42
-	err := assembleAndRunFromString(g, "SETA 42\nMOVA X\n")
+	err := assembleAndRunFromString(g, "SETA 42\nMOVE A -> X\n")
 	if err != nil {
 		t.Fatal("didn't expect an error:", err)
 	}
@@ -581,11 +581,11 @@ func TestMOVAX(t *testing.T) {
 	}
 }
 
-func TestMOVAY(t *testing.T) {
+func TestMOVE_CopiesRegisterAToRegisterY(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	var wantY gmachine.Word = 42
-	err := assembleAndRunFromString(g, "SETA 42\nMOVA Y\n")
+	err := assembleAndRunFromString(g, "SETA 42\nMOVE A -> Y\n")
 	if err != nil {
 		t.Fatal("didn't expect an error:", err)
 	}
@@ -594,16 +594,16 @@ func TestMOVAY(t *testing.T) {
 	}
 }
 
-func TestMOVA_FailsForUnknownIdentifier(t *testing.T) {
+func TestMOVE_FailsForUnknownIdentifier(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	err := assembleAndRunFromString(g, "MOVA Z")
+	err := assembleAndRunFromString(g, "MOVE A -> Z")
 	wantErr := gmachine.ErrUnknownIdentifier
 	if err == nil {
-		t.Fatal("expected an error to be returned for invalid argument to MOVA")
+		t.Fatal("expected an error to be returned for invalid argument to MOVE")
 	}
 	if !errors.Is(err, wantErr) {
-		t.Errorf("wanted error %v, got %v", wantErr, err)
+		t.Errorf("want: %q, got: %q", wantErr, err)
 	}
 }
 
@@ -613,7 +613,7 @@ func TestADDAX(t *testing.T) {
 	var wantA gmachine.Word = 10
 	err := assembleAndRunFromString(g, `
 SETA 6
-MOVA X
+MOVE A -> X
 SETA 4
 ADDA X
 `)
@@ -631,7 +631,7 @@ func TestADDAY(t *testing.T) {
 	var wantA gmachine.Word = 10
 	err := assembleAndRunFromString(g, `
 SETA 6
-MOVA Y
+MOVE A -> Y
 SETA 4
 ADDA Y
 `)
@@ -667,7 +667,7 @@ SETA 6
 PSHA
 ; add x y
 POPA
-MOVA X
+MOVE A -> X
 POPA
 ADDA X
 `)
@@ -685,7 +685,7 @@ func TestMULAX(t *testing.T) {
 	g := gmachine.New(nil)
 	err := assembleAndRunFromString(g, `
 SETA 5
-MOVA X
+MOVE A -> X
 SETA 2
 MULA X`)
 	if err != nil {
@@ -696,12 +696,13 @@ MULA X`)
 		t.Errorf("want A %d, got %d", wantA, g.A)
 	}
 }
+
 func TestMULAY(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	err := assembleAndRunFromString(g, `
 SETA 5
-MOVA Y
+MOVE A -> Y
 SETA 2
 MULA Y`)
 	if err != nil {
@@ -850,14 +851,36 @@ func TestVARB_DeclaresAIntegerVariableInMemory(t *testing.T) {
 	}
 }
 
-func TestMOVA_MovesAVariableToAccumulatorRegister(t *testing.T) {
+func TestMOVE_MovesAccumulatorRegisterToVariable(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := assembleAndRunFromString(g, `
+JUMP start
+VARB num 0
+.start
+SETA 42
+MOVE A -> num
+HALT
+`)
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	var want gmachine.Word = 42
+	var offset gmachine.Word = 2
+	got := g.Memory[g.MemOffset+offset]
+	if want != got {
+		t.Errorf("want: %d, got: %d", want, got)
+	}
+}
+
+func TestMOVE_MovesValueOfVariableIntoAccumulatorRegister(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
 	err := assembleAndRunFromString(g, `
 JUMP start
 VARB num 42
 .start
-MOVA num
+MOVE num -> A
 HALT
 `)
 	if err != nil {
@@ -865,7 +888,7 @@ HALT
 	}
 	var wantA gmachine.Word = 42
 	if wantA != g.A {
-		t.Errorf("want A %d, got %d", wantA, g.A)
+		t.Errorf("want: %d, got: %d", wantA, g.A)
 	}
 }
 

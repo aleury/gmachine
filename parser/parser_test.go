@@ -5,8 +5,11 @@ import (
 	"gmachine/ast"
 	"gmachine/lexer"
 	"gmachine/parser"
+	"gmachine/token"
 	"strings"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestParseProgram_ParsesLabelDefinitions(t *testing.T) {
@@ -20,29 +23,18 @@ func TestParseProgram_ParsesLabelDefinitions(t *testing.T) {
 		t.Fatal("ParseProgram() returned nil")
 	}
 
-	wantedStatments := 1
-	gotStatements := len(program.Statements)
-	if wantedStatments != gotStatements {
-		t.Fatalf("program.Statements does not contain %d statements. got=%d", wantedStatments, gotStatements)
+	want := []ast.Statement{
+		ast.LabelDefinitionStatement{
+			Token: token.Token{
+				Type:    token.LABEL_DEFINITION,
+				Literal: ".test",
+				Line:    1,
+			},
+		},
 	}
-
-	tests := []struct {
-		expectedLabelDefn string
-	}{
-		{".test"},
-	}
-
-	for i, tt := range tests {
-		stmt := program.Statements[i]
-
-		if stmt.TokenLiteral() != tt.expectedLabelDefn {
-			t.Fatalf("stmt.TokenLiteral not %s. got=%q", tt.expectedLabelDefn, stmt.TokenLiteral())
-		}
-
-		_, ok := stmt.(*ast.LabelDefinitionStatement)
-		if !ok {
-			t.Fatalf("stmt not *ast.LabelDefinitionStatement. got=%T", stmt)
-		}
+	got := program.Statements
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }
 
@@ -57,51 +49,34 @@ func TestParseProgram_ParsesConstantDefinition(t *testing.T) {
 		t.Fatal("ParseProgram() returned nil")
 	}
 
-	wantStatements := 1
-	gotStatements := len(program.Statements)
-	if wantStatements != gotStatements {
-		t.Fatalf("program.Statements does not contain %d statements. got %d", wantStatements, gotStatements)
+	want := []ast.Statement{
+		ast.ConstantDefinitionStatement{
+			Token: token.Token{
+				Type:    token.CONSTANT_DEFINITION,
+				Literal: "CONS",
+				Line:    1,
+			},
+			Name: ast.Identifier{
+				Token: token.Token{
+					Type:    token.IDENT,
+					Literal: "c",
+					Line:    1,
+				},
+				Value: "c",
+			},
+			Value: ast.IntegerLiteral{
+				Token: token.Token{
+					Type:    token.INT,
+					Literal: "10",
+					Line:    1,
+				},
+				Value: 10,
+			},
+		},
 	}
-
-	tests := []struct {
-		wantCons       string
-		wantIdentifier string
-		wantValue      uint64
-	}{
-		{"CONS", "c", 10},
-	}
-
-	for i, tt := range tests {
-		stmt := program.Statements[i]
-
-		if stmt.TokenLiteral() != tt.wantCons {
-			t.Fatalf("stmt.TokenLiteral not %s. got=%q", tt.wantCons, stmt.TokenLiteral())
-		}
-
-		consDefn, ok := stmt.(*ast.ConstantDefinitionStatement)
-		if !ok {
-			t.Fatalf("want stmt *ast.ConstantDefinitionStatement. got=%T", stmt)
-		}
-
-		ident := consDefn.Name
-		if ident == nil {
-			t.Fatal("didn't expect constant definition identifier to be nil")
-		}
-		if ident.Value != tt.wantIdentifier {
-			t.Fatalf("want identifier %s, got %s", tt.wantIdentifier, ident.Value)
-		}
-
-		value := consDefn.Value
-		if value == nil {
-			t.Fatal("didn't expect value expression to be nil")
-		}
-		valueExpr, ok := value.(*ast.IntegerLiteral)
-		if !ok {
-			t.Fatalf("value not *ast.IntegerLiteral. got=%T", value)
-		}
-		if valueExpr.Value != tt.wantValue {
-			t.Fatalf("wanted value %d, got %d", tt.wantValue, valueExpr.Value)
-		}
+	got := program.Statements
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }
 
@@ -117,50 +92,34 @@ func TestParseProgram_ParsesStringVariableDefinition(t *testing.T) {
 		t.Fatal("ParseProgram() returned nil")
 	}
 
-	wantStatements := 1
-	gotStatements := len(program.Statements)
-	if wantStatements != gotStatements {
-		t.Fatalf("program.Statements does not contain %d statements. got %d", wantStatements, gotStatements)
+	want := []ast.Statement{
+		ast.VariableDefinitionStatement{
+			Token: token.Token{
+				Type:    token.VARIABLE_DEFINITION,
+				Literal: "VARB",
+				Line:    1,
+			},
+			Name: ast.Identifier{
+				Token: token.Token{
+					Type:    token.IDENT,
+					Literal: "msg",
+					Line:    1,
+				},
+				Value: "msg",
+			},
+			Value: ast.StringLiteral{
+				Token: token.Token{
+					Type:    token.STRING,
+					Literal: "hello",
+					Line:    1,
+				},
+				Value: "hello",
+			},
+		},
 	}
-
-	tests := []struct {
-		wantVarb       string
-		wantIdentifier string
-		wantValue      string
-	}{
-		{"VARB", "msg", "hello"},
-	}
-
-	for i, tt := range tests {
-		stmt := program.Statements[i]
-		if stmt.TokenLiteral() != tt.wantVarb {
-			t.Fatalf("stmt.TokenLiteral not %s. got=%q", tt.wantVarb, stmt.TokenLiteral())
-		}
-
-		varbDefn, ok := stmt.(*ast.VariableDefinitionStatement)
-		if !ok {
-			t.Fatalf("want stmt *ast.VariableDefinitionStatement. got=%T", stmt)
-		}
-
-		ident := varbDefn.Name
-		if ident == nil {
-			t.Fatal("didn't expect variable definition identifier to be nil")
-		}
-		if ident.Value != tt.wantIdentifier {
-			t.Fatalf("want identifier %s, got %s", tt.wantIdentifier, ident.Value)
-		}
-
-		value := varbDefn.Value
-		if value == nil {
-			t.Fatal("didn't expect value expression to be nil")
-		}
-		valueExpr, ok := value.(*ast.StringLiteral)
-		if !ok {
-			t.Fatalf("value not *ast.StringLiteral. got=%T", value)
-		}
-		if valueExpr.Value != tt.wantValue {
-			t.Fatalf("wanted value %s, got %s", tt.wantValue, valueExpr.Value)
-		}
+	got := program.Statements
+	if !cmp.Equal(want, got) {
+		t.Error(want, got)
 	}
 }
 
@@ -176,54 +135,38 @@ func TestParseProgram_ParsesIntegerVariableDefinition(t *testing.T) {
 		t.Fatal("ParseProgram() returned nil")
 	}
 
-	wantStatements := 1
-	gotStatements := len(program.Statements)
-	if wantStatements != gotStatements {
-		t.Fatalf("program.Statements does not contain %d statements. got %d", wantStatements, gotStatements)
+	want := []ast.Statement{
+		ast.VariableDefinitionStatement{
+			Token: token.Token{
+				Type:    token.VARIABLE_DEFINITION,
+				Literal: "VARB",
+				Line:    1,
+			},
+			Name: ast.Identifier{
+				Token: token.Token{
+					Type:    token.IDENT,
+					Literal: "num",
+					Line:    1,
+				},
+				Value: "num",
+			},
+			Value: ast.IntegerLiteral{
+				Token: token.Token{
+					Type:    token.INT,
+					Literal: "100",
+					Line:    1,
+				},
+				Value: 100,
+			},
+		},
 	}
-
-	tests := []struct {
-		wantVarb       string
-		wantIdentifier string
-		wantValue      uint64
-	}{
-		{"VARB", "num", 100},
-	}
-
-	for i, tt := range tests {
-		stmt := program.Statements[i]
-		if stmt.TokenLiteral() != tt.wantVarb {
-			t.Fatalf("stmt.TokenLiteral not %s. got=%q", tt.wantVarb, stmt.TokenLiteral())
-		}
-
-		varbDefn, ok := stmt.(*ast.VariableDefinitionStatement)
-		if !ok {
-			t.Fatalf("want stmt *ast.VariableDefinitionStatement. got=%T", stmt)
-		}
-
-		ident := varbDefn.Name
-		if ident == nil {
-			t.Fatal("didn't expect variable definition identifier to be nil")
-		}
-		if ident.Value != tt.wantIdentifier {
-			t.Fatalf("want identifier %s, got %s", tt.wantIdentifier, ident.Value)
-		}
-
-		value := varbDefn.Value
-		if value == nil {
-			t.Fatal("didn't expect value expression to be nil")
-		}
-		valueExpr, ok := value.(*ast.IntegerLiteral)
-		if !ok {
-			t.Fatalf("value not *ast.IntegerLiteral. got=%T", value)
-		}
-		if valueExpr.Value != tt.wantValue {
-			t.Fatalf("wanted value %d, got %d", tt.wantValue, valueExpr.Value)
-		}
+	got := program.Statements
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }
 
-func TestParseProgram_ParsesOpcodesWithoutOperand(t *testing.T) {
+func TestParseProgram_ParsesInstructionsWithoutOperand(t *testing.T) {
 	t.Parallel()
 
 	input := `
@@ -242,34 +185,60 @@ POPA`
 		t.Fatal("ParseProgram() returned nil")
 	}
 
-	wantedStatments := 7
-	gotStatements := len(program.Statements)
-	if wantedStatments != gotStatements {
-		t.Fatalf("program.Statements does not contain %d statements. got=%d", wantedStatments, gotStatements)
+	want := []ast.Statement{
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "HALT",
+				Line:    2,
+			},
+		},
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "NOOP",
+				Line:    3,
+			},
+		},
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "OUTA",
+				Line:    4,
+			},
+		},
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "INCA",
+				Line:    5,
+			},
+		},
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "DECA",
+				Line:    6,
+			},
+		},
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "PSHA",
+				Line:    7,
+			},
+		},
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "POPA",
+				Line:    8,
+			},
+		},
 	}
-
-	tests := []struct {
-		expectedOpcode string
-	}{
-		{"HALT"},
-		{"NOOP"},
-		{"OUTA"},
-		{"INCA"},
-		{"DECA"},
-		{"PSHA"},
-		{"POPA"},
-	}
-	for i, tt := range tests {
-		stmt := program.Statements[i]
-
-		if stmt.TokenLiteral() != tt.expectedOpcode {
-			t.Fatalf("stmt.TokenLiteral not %s. got=%q", tt.expectedOpcode, stmt.TokenLiteral())
-		}
-
-		_, ok := stmt.(*ast.OpcodeStatement)
-		if !ok {
-			t.Fatalf("stmt not *ast.OpcodeStatement. got=%T", stmt)
-		}
+	got := program.Statements
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }
 
@@ -294,7 +263,7 @@ func TestParseProgram_ReturnsErrorForInvalidOperand(t *testing.T) {
 	}
 }
 
-func TestParseProgram_ParsesOpcodesWithAnIntegerLiteralOperand(t *testing.T) {
+func TestParseProgram_ParsesInstructionsWithAnIntegerLiteralOperand(t *testing.T) {
 	t.Parallel()
 
 	input := `
@@ -308,48 +277,45 @@ JUMP 42
 		t.Fatal("ParseProgram() returned nil")
 	}
 
-	wantedStatments := 2
-	gotStatements := len(program.Statements)
-	if wantedStatments != gotStatements {
-		t.Fatalf("program.Statements does not contain %d statements. got=%d", wantedStatments, gotStatements)
+	want := []ast.Statement{
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "SETA",
+				Line:    2,
+			},
+			Operand1: ast.IntegerLiteral{
+				Token: token.Token{
+					Type:    token.INT,
+					Literal: "42",
+					Line:    2,
+				},
+				Value: 42,
+			},
+		},
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "JUMP",
+				Line:    3,
+			},
+			Operand1: ast.IntegerLiteral{
+				Token: token.Token{
+					Type:    token.INT,
+					Literal: "42",
+					Line:    3,
+				},
+				Value: 42,
+			},
+		},
 	}
-
-	tests := []struct {
-		expectedOpcode  string
-		expectedOperand uint64
-	}{
-		{"SETA", 42},
-		{"JUMP", 42},
-	}
-
-	for i, tt := range tests {
-		stmt := program.Statements[i]
-
-		if stmt.TokenLiteral() != tt.expectedOpcode {
-			t.Fatalf("stmt.TokenLiteral not %s. got=%q", tt.expectedOpcode, stmt.TokenLiteral())
-		}
-
-		opcodeStmt, ok := stmt.(*ast.OpcodeStatement)
-		if !ok {
-			t.Fatalf("stmt not *ast.OpcodeStatement. got=%T", stmt)
-		}
-
-		operand := opcodeStmt.Operand
-		if operand == nil {
-			t.Fatalf("operand is nil")
-		}
-
-		operandExpr, ok := operand.(*ast.IntegerLiteral)
-		if !ok {
-			t.Fatalf("operand not *ast.IntegerLiteral. got=%T", operand)
-		}
-		if operandExpr.Value != tt.expectedOperand {
-			t.Fatalf("operand.Value not %d. got=%d", tt.expectedOperand, operandExpr.Value)
-		}
+	got := program.Statements
+	if !cmp.Equal(want, got) {
+		t.Error(want, got)
 	}
 }
 
-func TestParseProgram_ParsesOpcodeWithAnIdentifierOperand(t *testing.T) {
+func TestParseProgram_ParsesInstructionWithAnIdentifierOperand(t *testing.T) {
 	t.Parallel()
 
 	input := "JUMP start"
@@ -360,56 +326,34 @@ func TestParseProgram_ParsesOpcodeWithAnIdentifierOperand(t *testing.T) {
 		t.Fatal("ParseProgram() returned nil")
 	}
 
-	wantedStatments := 1
-	gotStatements := len(program.Statements)
-	if wantedStatments != gotStatements {
-		t.Fatalf("program.Statements does not contain %d statements. got=%d", wantedStatments, gotStatements)
+	want := []ast.Statement{
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "JUMP",
+				Line:    1,
+			},
+			Operand1: ast.Identifier{
+				Token: token.Token{
+					Type:    token.IDENT,
+					Literal: "start",
+					Line:    1,
+				},
+			},
+		},
 	}
-
-	tests := []struct {
-		expectedOpcode  string
-		expectedLiteral string
-	}{
-		{"JUMP", "start"},
-	}
-
-	for i, tt := range tests {
-		stmt := program.Statements[i]
-
-		if stmt.TokenLiteral() != tt.expectedOpcode {
-			t.Fatalf("stmt.TokenLiteral not %s. got=%q", tt.expectedOpcode, stmt.TokenLiteral())
-		}
-
-		opcodeStmt, ok := stmt.(*ast.OpcodeStatement)
-		if !ok {
-			t.Fatalf("stmt not *ast.OpcodeStatement. got=%T", stmt)
-		}
-
-		operand := opcodeStmt.Operand
-		if operand == nil {
-			t.Fatalf("operand is nil")
-		}
-
-		operandExpr, ok := operand.(*ast.Identifier)
-		if !ok {
-			t.Fatalf("operand not *ast.Identifier. got=%T", operand)
-		}
-		if operandExpr.Value != "" {
-			t.Fatalf("operand.Value is not nil")
-		}
+	got := program.Statements
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }
 
-func TestParseProgram_ParsesOpcodeWithARegisterLiteralOperand(t *testing.T) {
+func TestParseProgram_ParsesMoveInstructionWithRegisterAndIdentifierOperands(t *testing.T) {
 	t.Parallel()
 
 	input := `
-MOVA X
-MOVA Y
-SETA X
-SETA Y
-ADDA X
-ADDA Y	
+MOVE A -> var
+MOVE var -> A
 `
 	l := newLexerFromString(input)
 	p := parser.New(l)
@@ -418,53 +362,152 @@ ADDA Y
 		t.Fatal("ParseProgram() returned nil")
 	}
 
-	wantedStatments := 6
-	gotStatements := len(program.Statements)
-	if wantedStatments != gotStatements {
-		t.Fatalf("program.Statements does not contain %d statements. got=%d", wantedStatments, gotStatements)
+	want := []ast.Statement{
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "MOVE",
+				Line:    2,
+			},
+			Operand1: ast.RegisterLiteral{
+				Token: token.Token{
+					Type:    token.REGISTER,
+					Literal: "A",
+					Line:    2,
+				},
+			},
+			Operand2: ast.Identifier{
+				Token: token.Token{
+					Type:    token.IDENT,
+					Literal: "var",
+					Line:    2,
+				},
+			},
+		},
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "MOVE",
+				Line:    3,
+			},
+			Operand1: ast.Identifier{
+				Token: token.Token{
+					Type:    token.IDENT,
+					Literal: "var",
+					Line:    3,
+				},
+			},
+			Operand2: ast.RegisterLiteral{
+				Token: token.Token{
+					Type:    token.REGISTER,
+					Literal: "A",
+					Line:    3,
+				},
+			},
+		},
 	}
-
-	tests := []struct {
-		expectedOpcode   string
-		expectedRegister string
-	}{
-		{"MOVA", "X"},
-		{"MOVA", "Y"},
-		{"SETA", "X"},
-		{"SETA", "Y"},
-		{"ADDA", "X"},
-		{"ADDA", "Y"},
-	}
-
-	for i, tt := range tests {
-		stmt := program.Statements[i]
-
-		if stmt.TokenLiteral() != tt.expectedOpcode {
-			t.Fatalf("stmt.TokenLiteral not %s. got=%q", tt.expectedOpcode, stmt.TokenLiteral())
-		}
-
-		opcodeStmt, ok := stmt.(*ast.OpcodeStatement)
-		if !ok {
-			t.Fatalf("stmt not *ast.OpcodeStatement. got=%T", stmt)
-		}
-
-		operand := opcodeStmt.Operand
-		if operand == nil {
-			t.Fatalf("operand is nil")
-		}
-
-		operandExpr, ok := operand.(*ast.RegisterLiteral)
-		if !ok {
-			t.Fatalf("operand not *ast.RegisterLiteral. got=%T", operand)
-		}
-
-		if operandExpr.TokenLiteral() != tt.expectedRegister {
-			t.Fatalf("operand.TokenLiteral not %s. got=%q", tt.expectedRegister, operandExpr.TokenLiteral())
-		}
+	got := program.Statements
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }
 
-func TestParseProgram_ParsesOpcodeWithACharacterLiteralOperand(t *testing.T) {
+func TestParseProgram_ParsesInstructionsWithARegisterLiteralOperands(t *testing.T) {
+	t.Parallel()
+
+	input := `
+MOVE A -> X
+MOVE A -> Y
+ADDA X
+ADDA Y
+`
+	l := newLexerFromString(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+	if program == nil {
+		t.Fatal("ParseProgram() returned nil")
+	}
+
+	want := []ast.Statement{
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "MOVE",
+				Line:    2,
+			},
+			Operand1: ast.RegisterLiteral{
+				Token: token.Token{
+					Type:    token.REGISTER,
+					Literal: "A",
+					Line:    2,
+				},
+			},
+			Operand2: ast.RegisterLiteral{
+				Token: token.Token{
+					Type:    token.REGISTER,
+					Literal: "X",
+					Line:    2,
+				},
+			},
+		},
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "MOVE",
+				Line:    3,
+			},
+			Operand1: ast.RegisterLiteral{
+				Token: token.Token{
+					Type:    token.REGISTER,
+					Literal: "A",
+					Line:    3,
+				},
+			},
+			Operand2: ast.RegisterLiteral{
+				Token: token.Token{
+					Type:    token.REGISTER,
+					Literal: "Y",
+					Line:    3,
+				},
+			},
+		},
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "ADDA",
+				Line:    4,
+			},
+			Operand1: ast.RegisterLiteral{
+				Token: token.Token{
+					Type:    token.REGISTER,
+					Literal: "X",
+					Line:    4,
+				},
+			},
+		},
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "ADDA",
+				Line:    5,
+			},
+			Operand1: ast.RegisterLiteral{
+				Token: token.Token{
+					Type:    token.REGISTER,
+					Literal: "Y",
+					Line:    5,
+				},
+			},
+		},
+	}
+
+	got := program.Statements
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestParseProgram_ParsesInstructionWithACharacterLiteralOperand(t *testing.T) {
 	t.Parallel()
 
 	input := "SETA 'a'"
@@ -474,48 +517,26 @@ func TestParseProgram_ParsesOpcodeWithACharacterLiteralOperand(t *testing.T) {
 	if program == nil {
 		t.Fatal("ParseProgram() returned nil")
 	}
-
-	wantedStatements := 1
-	gotStatements := len(program.Statements)
-	if wantedStatements != gotStatements {
-		t.Fatalf("program.Statements does not contain %d statements. got=%d", wantedStatements, gotStatements)
+	want := []ast.Statement{
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "SETA",
+				Line:    1,
+			},
+			Operand1: ast.CharacterLiteral{
+				Token: token.Token{
+					Type:    token.CHAR,
+					Literal: "'a'",
+					Line:    1,
+				},
+				Value: 'a',
+			},
+		},
 	}
-
-	tests := []struct {
-		expectedOpcode  string
-		expectedLiteral string
-		expectedValue   rune
-	}{
-		{"SETA", "'a'", rune('a')},
-	}
-
-	for i, tt := range tests {
-		stmt := program.Statements[i]
-
-		if stmt.TokenLiteral() != tt.expectedOpcode {
-			t.Fatalf("stmt.TokenLiteral not %s. got=%q", tt.expectedOpcode, stmt.TokenLiteral())
-		}
-
-		opcodeStmt, ok := stmt.(*ast.OpcodeStatement)
-		if !ok {
-			t.Fatalf("stmt not *ast.OpcodeStatement. got=%T", stmt)
-		}
-
-		operand := opcodeStmt.Operand
-		if operand == nil {
-			t.Fatalf("operand is nil")
-		}
-
-		operandExpr, ok := operand.(*ast.CharacterLiteral)
-		if !ok {
-			t.Fatalf("operand not *ast.CharacterLiteral. got=%T", operand)
-		}
-		if operandExpr.TokenLiteral() != tt.expectedLiteral {
-			t.Fatalf("operand.TokenLiteral not %s. got=%q", tt.expectedLiteral, operandExpr.TokenLiteral())
-		}
-		if operandExpr.Value != tt.expectedValue {
-			t.Fatalf("operand.Value not %d. got=%d", tt.expectedValue, operandExpr.Value)
-		}
+	got := program.Statements
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }
 

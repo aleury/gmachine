@@ -5,19 +5,17 @@ import (
 	"gmachine/token"
 	"io"
 	"unicode"
-	"unicode/utf8"
 )
 
 var ErrInvalidNumberLiteral error = errors.New("invalid number")
 var ErrInvalidCharacterLiteral error = errors.New("invalid character literal, missing closing '")
 
 type Lexer struct {
-	input        string
-	line         int  // current line number in input (for current char)
-	position     int  // current position in input (points to current char)
-	readPosition int  // current reading position in input (after current char)
-	ch           rune // current char under examination
-	cw           int  // width of current char in bytes
+	input         []rune
+	line          int  // current line number in input (for current char)
+	position      int  // current position in input (points to current char)
+	nextRuneIndex int  // current reading position in input (after current char)
+	currentRune   rune // current char under examination
 }
 
 func New(reader io.Reader) (*Lexer, error) {
@@ -25,7 +23,7 @@ func New(reader io.Reader) (*Lexer, error) {
 	if err != nil {
 		return nil, err
 	}
-	l := &Lexer{input: string(input), line: 1}
+	l := &Lexer{input: []rune(string(input)), line: 1}
 	l.readChar()
 	return l, nil
 }
@@ -34,30 +32,37 @@ func (l *Lexer) NextToken() token.Token {
 	for {
 		l.skipWhitespace()
 		switch {
-		case l.ch == ';':
+		case l.currentRune == ';':
 			l.readUntil('\n')
 			continue
-		case l.ch == '\'':
+		case l.currentRune == '\'':
 			char := l.readCharacter()
 			return l.newToken(token.CHAR, char)
-		case l.ch == '"':
+		case l.currentRune == '"':
 			str := l.readString()
 			return l.newToken(token.STRING, str)
-		case l.ch == 0:
+		case l.currentRune == '-':
+			if l.peekChar() == '>' {
+				l.readChar()
+				l.readChar()
+				return l.newToken(token.ARROW, "->")
+			}
+			return l.newToken(token.ILLEGAL, string(l.currentRune))
+		case l.currentRune == 0:
 			return l.newToken(token.EOF, "")
-		case unicode.IsDigit(l.ch):
+		case unicode.IsDigit(l.currentRune):
 			value := l.readUntil('\n')
 			return l.newToken(token.INT, value)
-		case l.ch == '.':
+		case l.currentRune == '.':
 			literal := l.readIdentifier()
 			return l.newToken(token.LABEL_DEFINITION, literal)
-		case unicode.IsLetter(l.ch):
+		case unicode.IsLetter(l.currentRune):
 			literal := l.readIdentifier()
 			kind := token.LookupIdent(literal)
 			return l.newToken(kind, literal)
 		default:
 			// Should we continue lexing if there is an illegal token?
-			return l.newToken(token.ILLEGAL, string(l.ch))
+			return l.newToken(token.ILLEGAL, string(l.currentRune))
 		}
 	}
 }
@@ -72,23 +77,23 @@ func (l *Lexer) newToken(kind token.TokenType, literal string) token.Token {
 
 func (l *Lexer) readUntil(r rune) string {
 	start := l.position
-	for l.ch != r && l.ch != 0 {
+	for l.currentRune != r && l.currentRune != 0 {
 		l.readChar()
 	}
-	return l.input[start:l.position]
+	return string(l.input[start:l.position])
 }
 
 func (l *Lexer) readString() string {
 	position := l.position + 1
 	for {
 		l.readChar()
-		if l.ch == '"' || l.ch == 0 {
+		if l.currentRune == '"' || l.currentRune == 0 {
 			break
 		}
 	}
 	// consume closing quote
 	l.readChar()
-	return l.input[position : l.position-1]
+	return string(l.input[position : l.position-1])
 }
 
 func (l *Lexer) readCharacter() string {
@@ -96,23 +101,23 @@ func (l *Lexer) readCharacter() string {
 	l.readChar()
 	l.readChar()
 	l.readChar()
-	return l.input[start:l.position]
+	return string(l.input[start:l.position])
 }
 
 func (l *Lexer) readIdentifier() string {
 	start := l.position
-	if l.ch == '.' {
+	if l.currentRune == '.' {
 		l.readChar()
 	}
-	for unicode.IsLetter(l.ch) {
+	for unicode.IsLetter(l.currentRune) {
 		l.readChar()
 	}
-	return l.input[start:l.position]
+	return string(l.input[start:l.position])
 }
 
 func (l *Lexer) skipWhitespace() {
-	for unicode.IsSpace(l.ch) {
-		if l.ch == '\n' {
+	for unicode.IsSpace(l.currentRune) {
+		if l.currentRune == '\n' {
 			l.line++
 		}
 		l.readChar()
@@ -120,11 +125,14 @@ func (l *Lexer) skipWhitespace() {
 }
 
 func (l *Lexer) readChar() {
-	if l.readPosition >= len(l.input) {
-		l.ch = 0
-	} else {
-		l.ch, l.cw = utf8.DecodeRuneInString(l.input[l.readPosition:])
+	l.currentRune = l.peekChar()
+	l.position = l.nextRuneIndex
+	l.nextRuneIndex = l.position + 1
+}
+
+func (l *Lexer) peekChar() rune {
+	if l.nextRuneIndex >= len(l.input) {
+		return 0
 	}
-	l.position = l.readPosition
-	l.readPosition += l.cw
+	return l.input[l.nextRuneIndex]
 }

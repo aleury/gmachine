@@ -42,57 +42,62 @@ INCA
 DECA
 PSHA
 POPA
-MOVA X
-MOVA Y
+MOVE A -> X
+MOVE A -> Y
 OUTA
 HALT
 "test"
 ""`
 	tests := []struct {
-		expectedType    token.TokenType
-		expectedLiteral string
-		expectedLine    int
+		Type    token.TokenType
+		Literal string
+		Line    int
 	}{
-		{token.OPCODE, "JUMP", 2},
+		{token.INSTRUCTION, "JUMP", 2},
 		{token.INT, "2", 2},
-		{token.OPCODE, "JUMP", 3},
+		{token.INSTRUCTION, "JUMP", 3},
 		{token.IDENT, "start", 3},
 		{token.LABEL_DEFINITION, ".test", 7},
-		{token.OPCODE, "SETA", 8},
+		{token.INSTRUCTION, "SETA", 8},
 		{token.CHAR, "'a'", 8},
-		{token.OPCODE, "OUTA", 9},
-		{token.OPCODE, "HALT", 10},
+		{token.INSTRUCTION, "OUTA", 9},
+		{token.INSTRUCTION, "HALT", 10},
 		{token.LABEL_DEFINITION, ".start", 14},
-		{token.OPCODE, "NOOP", 15},
-		{token.OPCODE, "SETA", 16},
+		{token.INSTRUCTION, "NOOP", 15},
+		{token.INSTRUCTION, "SETA", 16},
 		{token.INT, "42", 16},
-		{token.OPCODE, "INCA", 17},
-		{token.OPCODE, "DECA", 18},
-		{token.OPCODE, "PSHA", 19},
-		{token.OPCODE, "POPA", 20},
-		{token.OPCODE, "MOVA", 21},
+		{token.INSTRUCTION, "INCA", 17},
+		{token.INSTRUCTION, "DECA", 18},
+		{token.INSTRUCTION, "PSHA", 19},
+		{token.INSTRUCTION, "POPA", 20},
+		{token.INSTRUCTION, "MOVE", 21},
+		{token.REGISTER, "A", 21},
+		{token.ARROW, "->", 21},
 		{token.REGISTER, "X", 21},
-		{token.OPCODE, "MOVA", 22},
+		{token.INSTRUCTION, "MOVE", 22},
+		{token.REGISTER, "A", 22},
+		{token.ARROW, "->", 22},
 		{token.REGISTER, "Y", 22},
-		{token.OPCODE, "OUTA", 23},
-		{token.OPCODE, "HALT", 24},
+		{token.INSTRUCTION, "OUTA", 23},
+		{token.INSTRUCTION, "HALT", 24},
 		{token.STRING, "test", 25},
 		{token.STRING, "", 26},
 		{token.EOF, "", 26},
 	}
 
 	l := newLexerFromString(input)
-	for i, tt := range tests {
-		tok := l.NextToken()
-		if tok.Type != tt.expectedType {
-			t.Fatalf("tests[%d] - tokentype wrong. wanted=%q, got=%q", i, tt.expectedType, tok.Type)
-		}
-		if tok.Literal != tt.expectedLiteral {
-			t.Fatalf("tests[%d] - literal wrong. wanted=%q, got=%q", i, tt.expectedLiteral, tok.Literal)
-		}
-		if tok.Line != tt.expectedLine {
-			t.Fatalf("tests[%d] - line number wrong. wanted=%d, got=%d", i, tt.expectedLine, tok.Line)
-		}
+	lines := strings.Split(input, "\n")
+	for _, want := range tests {
+		line := lines[want.Line-1]
+		t.Run(line, func(t *testing.T) {
+			got := l.NextToken()
+			if got.Type != want.Type || got.Literal != want.Literal {
+				t.Fatalf("wanted=%q [%s], got=%q [%s]", want.Literal, want.Type, got.Literal, got.Type)
+			}
+			if got.Line != want.Line {
+				t.Fatalf("line number wrong. wanted=%d, got=%d", want.Line, got.Line)
+			}
+		})
 	}
 }
 

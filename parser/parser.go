@@ -6,12 +6,14 @@ import (
 	"gmachine/ast"
 	"gmachine/lexer"
 	"gmachine/token"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 )
 
 var ErrInvalidOperand error = errors.New("invalid operand")
+var ErrInvalidSyntax error = errors.New("invalid syntax")
 var ErrInvalidIntegerLiteral error = errors.New("invalid integer literal")
 var ErrInvalidConstDefinition error = errors.New("invalid constant definition")
 var ErrInvalidVariableDefinition error = errors.New("invalid variable definition")
@@ -69,8 +71,8 @@ func (p *Parser) nextToken() {
 
 func (p *Parser) parseStatement() ast.Statement {
 	switch p.curToken.Type {
-	case token.OPCODE:
-		return p.parseOpcodeStatement()
+	case token.INSTRUCTION:
+		return p.parseInstructionStatement()
 	case token.LABEL_DEFINITION:
 		return p.parseLabelDefinitionStatement()
 	case token.CONSTANT_DEFINITION:
@@ -83,7 +85,7 @@ func (p *Parser) parseStatement() ast.Statement {
 }
 
 func (p *Parser) parseVariableDefinitionStatement() ast.Statement {
-	stmt := &ast.VariableDefinitionStatement{Token: p.curToken}
+	stmt := ast.VariableDefinitionStatement{Token: p.curToken}
 
 	if p.peekToken.Type != token.IDENT {
 		p.errors = append(p.errors, fmt.Errorf("%w: %s at line %d", ErrInvalidVariableDefinition, p.peekToken.Literal, p.peekToken.Line))
@@ -91,7 +93,7 @@ func (p *Parser) parseVariableDefinitionStatement() ast.Statement {
 	}
 
 	p.nextToken()
-	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	stmt.Name = ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
 	switch p.peekToken.Type {
 	case token.INT:
@@ -109,7 +111,7 @@ func (p *Parser) parseVariableDefinitionStatement() ast.Statement {
 }
 
 func (p *Parser) parseConstantDefinitionStatement() ast.Statement {
-	stmt := &ast.ConstantDefinitionStatement{Token: p.curToken}
+	stmt := ast.ConstantDefinitionStatement{Token: p.curToken}
 
 	if p.peekToken.Type != token.IDENT {
 		p.errors = append(p.errors, fmt.Errorf("%w: %s at line %d", ErrInvalidConstDefinition, p.peekToken.Literal, p.peekToken.Line))
@@ -117,7 +119,7 @@ func (p *Parser) parseConstantDefinitionStatement() ast.Statement {
 	}
 
 	p.nextToken()
-	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	stmt.Name = ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
 	if p.peekToken.Type != token.INT {
 		p.errors = append(p.errors, fmt.Errorf("%w: %s at line %d", ErrInvalidConstDefinition, p.peekToken.Literal, p.peekToken.Line))
@@ -131,30 +133,54 @@ func (p *Parser) parseConstantDefinitionStatement() ast.Statement {
 }
 
 func (p *Parser) parseLabelDefinitionStatement() ast.Statement {
-	return &ast.LabelDefinitionStatement{Token: p.curToken}
+	return ast.LabelDefinitionStatement{Token: p.curToken}
 }
 
-func (p *Parser) parseOpcodeStatement() ast.Statement {
-	stmt := &ast.OpcodeStatement{Token: p.curToken}
+func (p *Parser) expectOneOf(tokTypes ...token.TokenType) ast.Expression {
+	p.nextToken()
+	if !slices.Contains(tokTypes, p.curToken.Type) {
+		p.errors = append(p.errors, fmt.Errorf("%w: expected one of %+v, got %s at line %d", ErrInvalidSyntax, tokTypes, p.curToken.Type, p.curToken.Line))
+	}
 
-	if exprParser, ok := p.exprParsers[p.peekToken.Type]; ok {
-		p.nextToken()
-		stmt.Operand = exprParser()
+	switch p.curToken.Type {
+	case token.REGISTER:
+		return ast.RegisterLiteral{Token: p.curToken}
+	case token.IDENT:
+		return ast.Identifier{Token: p.curToken}
+	default:
+		return ast.Any{Token: p.curToken}
+	}
+}
+
+func (p *Parser) parseInstructionStatement() ast.Statement {
+	stmt := ast.InstructionStatement{Token: p.curToken}
+
+	if stmt.TokenLiteral() == "MOVE" {
+		stmt.Operand1 = p.expectOneOf(token.REGISTER, token.IDENT)
+
+		p.expectOneOf(token.ARROW)
+
+		stmt.Operand2 = p.expectOneOf(token.REGISTER, token.IDENT)
+	} else {
+		if exprParser, ok := p.exprParsers[p.peekToken.Type]; ok {
+			p.nextToken()
+			stmt.Operand1 = exprParser()
+		}
 	}
 
 	return stmt
 }
 
 func (p *Parser) parseRegisterLiteral() ast.Expression {
-	return &ast.RegisterLiteral{Token: p.curToken}
+	return ast.RegisterLiteral{Token: p.curToken}
 }
 
 func (p *Parser) parseIdentifier() ast.Expression {
-	return &ast.Identifier{Token: p.curToken}
+	return ast.Identifier{Token: p.curToken}
 }
 
 func (p *Parser) parseIntegerLiteral() ast.Expression {
-	intLiteral := &ast.IntegerLiteral{Token: p.curToken}
+	intLiteral := ast.IntegerLiteral{Token: p.curToken}
 
 	value, err := strconv.ParseUint(intLiteral.TokenLiteral(), 0, 64)
 	if err != nil {
@@ -168,11 +194,11 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 }
 
 func (p *Parser) parseStringLiteral() ast.Expression {
-	return &ast.StringLiteral{Token: p.curToken, Value: p.curToken.Literal}
+	return ast.StringLiteral{Token: p.curToken, Value: p.curToken.Literal}
 }
 
 func (p *Parser) parseCharacterLiteral() ast.Expression {
-	charLiteral := &ast.CharacterLiteral{Token: p.curToken}
+	charLiteral := ast.CharacterLiteral{Token: p.curToken}
 
 	// TODO: Handle errors
 	char, size := utf8.DecodeRuneInString(strings.Trim(charLiteral.TokenLiteral(), "'"))
