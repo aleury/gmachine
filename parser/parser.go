@@ -12,11 +12,8 @@ import (
 	"unicode/utf8"
 )
 
-var ErrInvalidOperand error = errors.New("invalid operand")
 var ErrInvalidSyntax error = errors.New("invalid syntax")
 var ErrInvalidIntegerLiteral error = errors.New("invalid integer literal")
-var ErrInvalidConstDefinition error = errors.New("invalid constant definition")
-var ErrInvalidVariableDefinition error = errors.New("invalid variable definition")
 
 type expressionParserFn func() ast.Expression
 
@@ -93,23 +90,8 @@ func (p *Parser) parseVariableDefinitionStatement() ast.Statement {
 
 func (p *Parser) parseConstantDefinitionStatement() ast.Statement {
 	stmt := ast.ConstantDefinitionStatement{Token: p.curToken}
-
-	if p.peekToken.Type != token.IDENT {
-		p.errors = append(p.errors, fmt.Errorf("%w: %s at line %d", ErrInvalidConstDefinition, p.peekToken.Literal, p.peekToken.Line))
-		return nil
-	}
-
-	p.nextToken()
-	stmt.Name = ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-
-	if p.peekToken.Type != token.INT {
-		p.errors = append(p.errors, fmt.Errorf("%w: %s at line %d", ErrInvalidConstDefinition, p.peekToken.Literal, p.peekToken.Line))
-		return nil
-	}
-
-	p.nextToken()
-	stmt.Value = p.parseIntegerLiteral()
-
+	stmt.Name = p.expectOneOf(token.IDENT).(ast.Identifier)
+	stmt.Value = p.expectOneOf(token.INT)
 	return stmt
 }
 
