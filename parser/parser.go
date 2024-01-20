@@ -148,7 +148,7 @@ func (p *Parser) expectOneOf(tokTypes ...token.TokenType) ast.Expression {
 	case token.IDENT:
 		return ast.Identifier{Token: p.curToken}
 	default:
-		return ast.Any{Token: p.curToken}
+		return nil
 	}
 }
 
@@ -157,15 +157,13 @@ func (p *Parser) parseInstructionStatement() ast.Statement {
 
 	if stmt.TokenLiteral() == "MOVE" {
 		stmt.Operand1 = p.expectOneOf(token.REGISTER, token.IDENT)
-
 		p.expectOneOf(token.ARROW)
-
 		stmt.Operand2 = p.expectOneOf(token.REGISTER, token.IDENT)
-	} else {
-		if exprParser, ok := p.exprParsers[p.peekToken.Type]; ok {
-			p.nextToken()
-			stmt.Operand1 = exprParser()
-		}
+	}
+
+	if exprParser, ok := p.exprParsers[p.peekToken.Type]; ok {
+		p.nextToken()
+		stmt.Operand1 = exprParser()
 	}
 
 	return stmt

@@ -99,10 +99,3 @@ type StringLiteral struct {
 
 func (sl StringLiteral) expressionNode()      {}
 func (sl StringLiteral) TokenLiteral() string { return sl.Token.Literal }
-
-type Any struct {
-	Token token.Token
-}
-
-func (e Any) expressionNode()      {}
-func (e Any) TokenLiteral() string { return e.Token.Literal }
