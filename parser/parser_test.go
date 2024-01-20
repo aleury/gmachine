@@ -339,6 +339,7 @@ func TestParseProgram_ParsesInstructionWithAnIdentifierOperand(t *testing.T) {
 					Literal: "start",
 					Line:    1,
 				},
+				Value: "start",
 			},
 		},
 	}
@@ -382,6 +383,7 @@ MOVE var -> A
 					Literal: "var",
 					Line:    2,
 				},
+				Value: "var",
 			},
 		},
 		ast.InstructionStatement{
@@ -396,6 +398,7 @@ MOVE var -> A
 					Literal: "var",
 					Line:    3,
 				},
+				Value: "var",
 			},
 			Operand2: ast.RegisterLiteral{
 				Token: token.Token{

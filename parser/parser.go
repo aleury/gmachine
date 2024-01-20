@@ -86,27 +86,8 @@ func (p *Parser) parseStatement() ast.Statement {
 
 func (p *Parser) parseVariableDefinitionStatement() ast.Statement {
 	stmt := ast.VariableDefinitionStatement{Token: p.curToken}
-
-	if p.peekToken.Type != token.IDENT {
-		p.errors = append(p.errors, fmt.Errorf("%w: %s at line %d", ErrInvalidVariableDefinition, p.peekToken.Literal, p.peekToken.Line))
-		return nil
-	}
-
-	p.nextToken()
-	stmt.Name = ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-
-	switch p.peekToken.Type {
-	case token.INT:
-		p.nextToken()
-		stmt.Value = p.parseIntegerLiteral()
-	case token.STRING:
-		p.nextToken()
-		stmt.Value = p.parseStringLiteral()
-	default:
-		p.errors = append(p.errors, fmt.Errorf("%w: %s at line %d", ErrInvalidVariableDefinition, p.peekToken.Literal, p.peekToken.Line))
-		return nil
-	}
-
+	stmt.Name = p.expectOneOf(token.IDENT).(ast.Identifier)
+	stmt.Value = p.expectOneOf(token.INT, token.STRING)
 	return stmt
 }
 
@@ -144,9 +125,13 @@ func (p *Parser) expectOneOf(tokTypes ...token.TokenType) ast.Expression {
 
 	switch p.curToken.Type {
 	case token.REGISTER:
-		return ast.RegisterLiteral{Token: p.curToken}
+		return p.parseRegisterLiteral()
 	case token.IDENT:
-		return ast.Identifier{Token: p.curToken}
+		return p.parseIdentifier()
+	case token.INT:
+		return p.parseIntegerLiteral()
+	case token.STRING:
+		return p.parseStringLiteral()
 	default:
 		return nil
 	}
@@ -174,7 +159,7 @@ func (p *Parser) parseRegisterLiteral() ast.Expression {
 }
 
 func (p *Parser) parseIdentifier() ast.Expression {
-	return ast.Identifier{Token: p.curToken}
+	return ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 }
 
 func (p *Parser) parseIntegerLiteral() ast.Expression {
