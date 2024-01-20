@@ -32,6 +32,7 @@ func TestLookupIdent(t *testing.T) {
 		{"POPA", token.INSTRUCTION},
 		{"JUMP", token.INSTRUCTION},
 		{"JXNZ", token.INSTRUCTION},
+		{"A", token.REGISTER},
 		{"X", token.REGISTER},
 		{"Y", token.REGISTER},
 		{"test", token.IDENT},
