@@ -106,6 +106,15 @@ func (p *Parser) expectOneOf(tokTypes ...token.TokenType) ast.Expression {
 	}
 
 	switch p.curToken.Type {
+	case token.ASTERISK:
+		expr := p.expectOneOf(token.REGISTER)
+		if expr == nil {
+			p.errors = append(p.errors, fmt.Errorf("%w: expected one of %+v, got %s at line %d", ErrInvalidSyntax, tokTypes, p.curToken.Type, p.curToken.Line))
+			return nil
+		}
+		regLiteral := expr.(ast.RegisterLiteral)
+		regLiteral.Dereferenced = true
+		return regLiteral
 	case token.REGISTER:
 		return p.parseRegisterLiteral()
 	case token.IDENT:
@@ -123,7 +132,7 @@ func (p *Parser) parseInstructionStatement() ast.Statement {
 	stmt := ast.InstructionStatement{Token: p.curToken}
 
 	if stmt.TokenLiteral() == "MOVE" {
-		stmt.Operand1 = p.expectOneOf(token.REGISTER, token.IDENT)
+		stmt.Operand1 = p.expectOneOf(token.ASTERISK, token.REGISTER, token.IDENT)
 		p.expectOneOf(token.ARROW)
 		stmt.Operand2 = p.expectOneOf(token.REGISTER, token.IDENT)
 	}

@@ -420,6 +420,7 @@ func TestParseProgram_ParsesInstructionsWithARegisterLiteralOperands(t *testing.
 
 	input := `
 MOVE A -> X
+MOVE *A -> X
 MOVE A -> Y
 ADDA X
 ADDA Y
@@ -465,11 +466,12 @@ ADDA Y
 					Literal: "A",
 					Line:    3,
 				},
+				Dereferenced: true,
 			},
 			Operand2: ast.RegisterLiteral{
 				Token: token.Token{
 					Type:    token.REGISTER,
-					Literal: "Y",
+					Literal: "X",
 					Line:    3,
 				},
 			},
@@ -477,13 +479,20 @@ ADDA Y
 		ast.InstructionStatement{
 			Token: token.Token{
 				Type:    token.INSTRUCTION,
-				Literal: "ADDA",
+				Literal: "MOVE",
 				Line:    4,
 			},
 			Operand1: ast.RegisterLiteral{
 				Token: token.Token{
 					Type:    token.REGISTER,
-					Literal: "X",
+					Literal: "A",
+					Line:    4,
+				},
+			},
+			Operand2: ast.RegisterLiteral{
+				Token: token.Token{
+					Type:    token.REGISTER,
+					Literal: "Y",
 					Line:    4,
 				},
 			},
@@ -497,8 +506,22 @@ ADDA Y
 			Operand1: ast.RegisterLiteral{
 				Token: token.Token{
 					Type:    token.REGISTER,
-					Literal: "Y",
+					Literal: "X",
 					Line:    5,
+				},
+			},
+		},
+		ast.InstructionStatement{
+			Token: token.Token{
+				Type:    token.INSTRUCTION,
+				Literal: "ADDA",
+				Line:    6,
+			},
+			Operand1: ast.RegisterLiteral{
+				Token: token.Token{
+					Type:    token.REGISTER,
+					Literal: "Y",
+					Line:    6,
 				},
 			},
 		},

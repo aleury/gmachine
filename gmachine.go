@@ -30,6 +30,7 @@ const (
 	OpADDA
 	OpMULA
 	OpMVAX
+	OpMVIAX
 	OpMVAY
 	OpMVAV
 	OpMVVA
@@ -68,28 +69,29 @@ var registers = map[string]Word{
 }
 
 var opcodes = map[string]Word{
-	"HALT": OpHALT,
-	"NOOP": OpNOOP,
-	"OUTA": OpOUTA,
-	"INCA": OpINCA,
-	"INCX": OpINCX,
-	"INCY": OpINCY,
-	"DECA": OpDECA,
-	"DECX": OpDECX,
-	"DECY": OpDECY,
-	"ADDA": OpADDA,
-	"MULA": OpMULA,
-	"MVAX": OpMVAX,
-	"MVAY": OpMVAY,
-	"MVAV": OpMVAV,
-	"MVVA": OpMVVA,
-	"SETA": OpSETA,
-	"SETX": OpSETX,
-	"SETY": OpSETY,
-	"PSHA": OpPSHA,
-	"POPA": OpPOPA,
-	"JUMP": OpJUMP,
-	"JXNZ": OpJXNZ,
+	"HALT":  OpHALT,
+	"NOOP":  OpNOOP,
+	"OUTA":  OpOUTA,
+	"INCA":  OpINCA,
+	"INCX":  OpINCX,
+	"INCY":  OpINCY,
+	"DECA":  OpDECA,
+	"DECX":  OpDECX,
+	"DECY":  OpDECY,
+	"ADDA":  OpADDA,
+	"MULA":  OpMULA,
+	"MVAX":  OpMVAX,
+	"MVIAX": OpMVIAX,
+	"MVAY":  OpMVAY,
+	"MVAV":  OpMVAV,
+	"MVVA":  OpMVVA,
+	"SETA":  OpSETA,
+	"SETX":  OpSETX,
+	"SETY":  OpSETY,
+	"PSHA":  OpPSHA,
+	"POPA":  OpPOPA,
+	"JUMP":  OpJUMP,
+	"JXNZ":  OpJXNZ,
 }
 
 type Word uint64
@@ -169,6 +171,8 @@ func (g *Machine) Run() {
 			}
 		case OpMVAX:
 			g.X = g.A
+		case OpMVIAX:
+			g.X = g.Memory[g.MemOffset+g.A]
 		case OpMVAY:
 			g.Y = g.A
 		case OpMVAV:
@@ -333,11 +337,16 @@ func assembleInstructionStatement(stmt ast.InstructionStatement, program []Word,
 
 	switch instruction {
 	case "MOVE":
+		opcodeStr := "MV"
 		switch operand1 := stmt.Operand1.(type) {
 		case ast.RegisterLiteral:
+			if operand1.Dereferenced {
+				opcodeStr += "I"
+			}
+			opcodeStr += operand1.TokenLiteral()
 			switch operand2 := stmt.Operand2.(type) {
 			case ast.RegisterLiteral:
-				opcodeStr := fmt.Sprintf("%s%s%s", "MV", operand1.TokenLiteral(), operand2.TokenLiteral())
+				opcodeStr += operand2.TokenLiteral()
 				opcode, ok := opcodes[opcodeStr]
 				if !ok {
 					return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUnknownOpcode, opcodeStr, stmt.Token.Line)
@@ -359,9 +368,10 @@ func assembleInstructionStatement(stmt ast.InstructionStatement, program []Word,
 				program = append(program, Word(0))
 			}
 		case ast.Identifier:
+			opcodeStr += "V"
 			switch operand2 := stmt.Operand2.(type) {
 			case ast.RegisterLiteral:
-				opcodeStr := fmt.Sprintf("%s%s%s", "MV", "V", operand2.TokenLiteral())
+				opcodeStr += operand2.TokenLiteral()
 				opcode, ok := opcodes[opcodeStr]
 				if !ok {
 					return nil, nil, fmt.Errorf("%w: %s at line %d", ErrUnknownOpcode, opcodeStr, stmt.Token.Line)

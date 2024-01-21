@@ -607,6 +607,25 @@ func TestMOVE_FailsForUnknownIdentifier(t *testing.T) {
 	}
 }
 
+func TestMOVE_CopiesDereferencedRegisterAToRegisterX(t *testing.T) {
+	t.Parallel()
+	g := gmachine.New(nil)
+	err := assembleAndRunFromString(g, `
+JUMP start
+VARB num 42
+.start
+SETA num
+MOVE *A -> X
+`)
+	if err != nil {
+		t.Fatal("didn't expect an error:", err)
+	}
+	var wantX gmachine.Word = 42
+	if wantX != g.X {
+		t.Errorf("want %d, got %d", wantX, g.X)
+	}
+}
+
 func TestADDAX(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)

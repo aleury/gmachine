@@ -62,7 +62,8 @@ func (os InstructionStatement) statementNode()       {}
 func (os InstructionStatement) TokenLiteral() string { return os.Token.Literal }
 
 type RegisterLiteral struct {
-	Token token.Token // the token.REGISTER token
+	Token        token.Token // the token.REGISTER token
+	Dereferenced bool
 }
 
 func (rl RegisterLiteral) expressionNode()      {}
