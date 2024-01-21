@@ -914,12 +914,18 @@ HALT
 func TestVARB_DeclaresAStringVariableInMemory(t *testing.T) {
 	t.Parallel()
 	g := gmachine.New(nil)
-	err := assembleAndRunFromString(g, `VARB msg "hello world"`)
+	err := assembleAndRunFromString(g, `
+JUMP start
+VARB msg "hello world"
+.start
+HALT
+`)
 	if err != nil {
 		t.Fatal("didn't expect an error:", err)
 	}
-	want := []gmachine.Word{'h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'}
-	got := g.Memory[int(g.MemOffset) : int(g.MemOffset)+len(want)]
+	want := []gmachine.Word{'h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', 0}
+	offsetStart := int(g.MemOffset) + 2
+	got := g.Memory[offsetStart : offsetStart+len(want)]
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
 	}

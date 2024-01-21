@@ -293,7 +293,7 @@ func Assemble(reader io.Reader) ([]Word, error) {
 			case ast.IntegerLiteral:
 				program = append(program, Word(operand.Value))
 			case ast.StringLiteral:
-				strSlice := make([]Word, len(operand.Value))
+				strSlice := make([]Word, len(operand.Value)+1)
 				for i, c := range operand.Value {
 					strSlice[i] = Word(c)
 				}
