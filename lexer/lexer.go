@@ -12,10 +12,10 @@ var ErrInvalidCharacterLiteral error = errors.New("invalid character literal, mi
 
 type Lexer struct {
 	input         []rune
-	line          int  // current line number in input (for current char)
-	position      int  // current position in input (points to current char)
-	nextRuneIndex int  // current reading position in input (after current char)
-	currentRune   rune // current char under examination
+	line          int  // current line number in input (for current rune)
+	position      int  // current position in input (points to current rune)
+	nextRuneIndex int  // current reading position in input (after current rune)
+	currentRune   rune // current rune under examination
 }
 
 func New(reader io.Reader) (*Lexer, error) {
