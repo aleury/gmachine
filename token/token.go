@@ -23,7 +23,7 @@ var registers = map[string]TokenType{
 	"Y": REGISTER,
 }
 
-var opcodes = map[string]TokenType{
+var instructions = map[string]TokenType{
 	"HALT": INSTRUCTION,
 	"NOOP": INSTRUCTION,
 	"MOVE": INSTRUCTION,
@@ -59,7 +59,7 @@ type Token struct {
 }
 
 func LookupIdent(ident string) TokenType {
-	if tokType, ok := opcodes[ident]; ok {
+	if tokType, ok := instructions[ident]; ok {
 		return tokType
 	}
 	if tokType, ok := registers[ident]; ok {
